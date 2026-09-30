@@ -8,23 +8,13 @@
  * O schema vai junto, ao lado do bundle: migrate() procura primeiro no próprio
  * diretório do módulo.
  *
- * Uso: node scripts/empacotar-funcao.mjs [vercel|netlify]
+ * Uso: node scripts/empacotar-funcao.mjs
  */
 import { build } from 'esbuild';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const ALVOS = {
-  vercel: { entrada: 'api/index.ts', saida: 'api/bundle.mjs' },
-  netlify: { entrada: 'api/netlify.ts', saida: '../netlify/functions/api.mjs' },
-};
-
-const nome = process.argv[2] ?? 'vercel';
-const alvo = ALVOS[nome];
-if (!alvo) {
-  console.error(`Alvo desconhecido: ${nome}. Use ${Object.keys(ALVOS).join(' ou ')}.`);
-  process.exit(1);
-}
+const alvo = { entrada: 'api/netlify.ts', saida: '../netlify/functions/api.mjs' };
 
 fs.mkdirSync(path.dirname(alvo.saida), { recursive: true });
 

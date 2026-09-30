@@ -161,7 +161,7 @@ const aqui = path.dirname(fileURLToPath(import.meta.url));
 /**
  * Onde procurar o schema, em ordem. O terceiro caminho é o serverless: lá o
  * código chega empacotado, `import.meta.url` aponta para o bundle e o arquivo
- * .sql entra pela raiz da função (includeFiles no vercel.json).
+ * .sql entra pela raiz da função (included_files no netlify.toml).
  */
 const CAMINHOS_SCHEMA = [
   path.resolve(aqui, 'schema.pg.sql'),

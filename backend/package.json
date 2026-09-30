@@ -10,7 +10,6 @@
     "seed": "tsx src/db/seed.ts",
     "serve": "tsx src/server.ts",
     "test": "tsx --test $(find src -name '*.test.ts' | sort | tr '\\n' ' ')",
-    "build:funcao": "node scripts/empacotar-funcao.mjs vercel",
     "build:netlify": "node scripts/empacotar-funcao.mjs netlify"
   },
   "dependencies": {

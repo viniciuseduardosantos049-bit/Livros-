@@ -17,8 +17,14 @@ dotenv.config({ path: path.resolve(rootDir, '.env') });
  */
 const emProducao =
   (process.env.NODE_ENV ?? 'development') === 'production' ||
-  process.env.VERCEL === '1' ||
   process.env.NETLIFY === 'true';
+
+/**
+ * Rodando como função serverless. `NETLIFY` cobre o build e as funções;
+ * `AWS_LAMBDA_FUNCTION_NAME` só existe dentro da função em si, que é onde o
+ * limite de conexões importa de verdade.
+ */
+const emServerless = process.env.NETLIFY === 'true' || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 
 /**
  * Em produção o fallback é ignorado de propósito: subir com segredo conhecido
@@ -47,10 +53,13 @@ export const env = {
   cookieName: process.env.COOKIE_NAME ?? 'biblioteca_token',
   /** String de conexão do PostgreSQL. Obrigatória: não há mais banco em arquivo. */
   databaseUrl: required('DATABASE_URL'),
-  /** Provedores gerenciados (Neon, Vercel, Supabase) exigem TLS. */
+  /** Provedores gerenciados (Neon, Supabase) exigem TLS. */
   databaseSsl: (process.env.DATABASE_SSL ?? (emProducao ? 'true' : 'false')) === 'true',
-  /** Em serverless cada requisição é um processo: 1 conexão por instância. */
-  serverless: process.env.VERCEL === '1',
+  /**
+   * Em serverless cada instância atende uma requisição por vez: abrir um pool
+   * de 10 só consome o limite de conexões do banco sem ganho nenhum.
+   */
+  serverless: emServerless,
   openLibraryBaseUrl: process.env.OPEN_LIBRARY_BASE_URL ?? 'https://openlibrary.org',
   openLibraryTimeoutMs: Number(process.env.OPEN_LIBRARY_TIMEOUT_MS ?? 10000),
   aiProvider: process.env.AI_PROVIDER ?? '',
