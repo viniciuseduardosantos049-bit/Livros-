@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 import type { IsbnLookup } from '../api/types';
-import { BarcodeNaoEncontrado, lerCodigoDeBarras } from '../lib/barcode';
+import { BarcodeNaoEncontrado, lerAoVivo, lerCodigoDeBarras, type LeituraAoVivo } from '../lib/barcode';
 import { Cover, Spinner } from './ui';
 
 type Estado =
@@ -36,12 +36,12 @@ export default function EscanearIsbn({ onUsarTermo }: { onUsarTermo: (termo: str
     return window.isSecureContext && typeof navigator.mediaDevices?.getUserMedia === 'function';
   }
 
-  async function tirarFoto() {
+  function escanear() {
     if (temCameraAoVivo()) setEstado({ fase: 'camera' });
     else inputCamera.current?.click();
   }
 
-  async function consultar(isbn: string) {
+  const consultar = useCallback(async (isbn: string) => {
     setEstado({ fase: 'consultando', isbn });
     try {
       setEstado({ fase: 'achou', livro: await api.findByIsbn(isbn) });
@@ -49,7 +49,7 @@ export default function EscanearIsbn({ onUsarTermo }: { onUsarTermo: (termo: str
       const mensagem = err instanceof ApiError ? err.message : 'Falha ao consultar o ISBN.';
       setEstado({ fase: 'erro', mensagem, permiteDigitar: true });
     }
-  }
+  }, []);
 
   async function aoEscolherArquivo(arquivo: File | undefined) {
     if (!arquivo) return;
@@ -94,16 +94,16 @@ export default function EscanearIsbn({ onUsarTermo }: { onUsarTermo: (termo: str
       </div>
 
       <p className="small muted" style={{ margin: '.4rem 0 .8rem' }}>
-        Tire uma foto ou envie uma da galeria. O código de barras do livro é o ISBN — com ele a
-        edição e a editora vêm exatas, sem precisar escolher na lista.
+        Aponte a câmera para o código de barras da contracapa — ele é lido sozinho, sem tirar foto.
+        O código de barras do livro é o ISBN, e com ele a edição e a editora vêm exatas.
       </p>
 
       <div className="scanner-acoes">
         <button type="button" className="btn-ghost btn-sm" onClick={() => inputGaleria.current?.click()}>
           Enviar foto
         </button>
-        <button type="button" className="btn-primary btn-sm" onClick={() => void tirarFoto()}>
-          Tirar foto
+        <button type="button" className="btn-primary btn-sm" onClick={escanear}>
+          Escanear com a câmera
         </button>
       </div>
 
@@ -129,7 +129,7 @@ export default function EscanearIsbn({ onUsarTermo }: { onUsarTermo: (termo: str
       />
 
       {estado.fase === 'camera' && (
-        <CameraAoVivo onCapturar={(arquivo) => void aoEscolherArquivo(arquivo)} onCancelar={reiniciar} />
+        <CameraAoVivo onEncontrar={(isbn) => void consultar(isbn)} onCancelar={reiniciar} />
       )}
 
       {estado.fase === 'lendo' && <Spinner label="Lendo o código de barras..." />}
@@ -224,32 +224,34 @@ function DigitarIsbn({ onEnviar }: { onEnviar: (isbn: string) => void }) {
 }
 
 /**
- * Câmera ao vivo, usada só onde `getUserMedia` existe (https ou localhost).
- * Prefere a traseira (`facingMode: environment`) porque o código de barras está
- * na contracapa do livro que a pessoa segura à frente.
+ * Leitura contínua pela câmera.
+ *
+ * Substituiu a captura de foto: uma imagem única de celular costuma sair
+ * tremida ou em ângulo, e o EAN-13 só decodifica com as barras nítidas — por
+ * isso a foto falhava quase sempre. Varrendo quadro a quadro, basta um bom.
  */
 function CameraAoVivo({
-  onCapturar, onCancelar,
-}: { onCapturar: (arquivo: File) => void; onCancelar: () => void }) {
+  onEncontrar, onCancelar,
+}: { onEncontrar: (isbn: string) => void; onCancelar: () => void }) {
   const video = useRef<HTMLVideoElement>(null);
+  const leitura = useRef<LeituraAoVivo | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const stream = useRef<MediaStream | null>(null);
-
-  const encerrar = useCallback(() => {
-    stream.current?.getTracks().forEach((t) => t.stop());
-    stream.current = null;
-  }, []);
 
   useEffect(() => {
     let cancelado = false;
-    navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: { ideal: 'environment' } } })
-      .then((s) => {
-        if (cancelado) { s.getTracks().forEach((t) => t.stop()); return; }
-        stream.current = s;
-        if (video.current) video.current.srcObject = s;
+
+    lerAoVivo(
+      video.current!,
+      (isbn) => { if (!cancelado) onEncontrar(isbn); },
+      () => { if (!cancelado) setErro('A câmera parou de responder. Tente de novo ou use "Enviar foto".'); },
+    )
+      .then((controle) => {
+        // Desmontou antes de a câmera abrir: encerra na hora, senão a luz fica acesa.
+        if (cancelado) controle.parar();
+        else leitura.current = controle;
       })
       .catch((err: unknown) => {
+        if (cancelado) return;
         setErro(
           err instanceof DOMException && err.name === 'NotAllowedError'
             ? 'Permissão de câmera negada. Libere nas configurações do navegador ou use "Enviar foto".'
@@ -257,24 +259,8 @@ function CameraAoVivo({
         );
       });
 
-    // Encerrar a trilha é obrigatório: sem isso a luz da câmera fica acesa.
-    return () => { cancelado = true; encerrar(); };
-  }, [encerrar]);
-
-  function capturar() {
-    const el = video.current;
-    if (!el || !el.videoWidth) return;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = el.videoWidth;
-    canvas.height = el.videoHeight;
-    canvas.getContext('2d')?.drawImage(el, 0, 0);
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      encerrar();
-      onCapturar(new File([blob], 'codigo-de-barras.png', { type: 'image/png' }));
-    }, 'image/png');
-  }
+    return () => { cancelado = true; leitura.current?.parar(); };
+  }, [onEncontrar]);
 
   if (erro) {
     return (
@@ -289,16 +275,11 @@ function CameraAoVivo({
 
   return (
     <div className="scanner-camera">
-      <video ref={video} autoPlay playsInline muted aria-label="Prévia da câmera" />
+      <video ref={video} autoPlay playsInline muted aria-label="Câmera lendo o código de barras" />
       <p className="small muted" style={{ margin: '.5rem 0' }}>
-        Enquadre só o código de barras da contracapa, com boa luz.
+        Procurando o código... aproxime até as barras ficarem nítidas e preencherem a largura.
       </p>
-      <div className="scanner-acoes">
-        <button type="button" className="btn-primary btn-sm" onClick={capturar}>Capturar</button>
-        <button type="button" className="btn-ghost btn-sm" onClick={() => { encerrar(); onCancelar(); }}>
-          Cancelar
-        </button>
-      </div>
+      <button type="button" className="btn-ghost btn-sm" onClick={onCancelar}>Cancelar</button>
     </div>
   );
 }

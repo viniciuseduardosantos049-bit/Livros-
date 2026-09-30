@@ -82,3 +82,74 @@ async function tentarZxing(arquivo: File): Promise<string | null> {
     URL.revokeObjectURL(url);
   }
 }
+
+/** Controle devolvido pelo leitor ao vivo, para encerrar a câmera. */
+export interface LeituraAoVivo {
+  parar(): void;
+}
+
+/**
+ * Leitura contínua pela câmera.
+ *
+ * Diferente da foto: em vez de uma imagem única, examina quadro após quadro até
+ * um decodificar. Uma foto de celular costuma sair tremida ou em ângulo, e o
+ * código de barras só decodifica quando as barras estão nítidas e alinhadas —
+ * por isso a tentativa única falha tanto. Varrendo continuamente, basta um
+ * quadro bom entre dezenas.
+ *
+ * Exige contexto seguro (https ou localhost) — em produção isso já vale.
+ */
+export async function lerAoVivo(
+  video: HTMLVideoElement,
+  aoEncontrar: (isbn: string) => void,
+  aoFalhar: (erro: unknown) => void,
+): Promise<LeituraAoVivo> {
+  const [{ BrowserMultiFormatReader }, { BarcodeFormat, DecodeHintType }] = await Promise.all([
+    import('@zxing/browser'),
+    import('@zxing/library'),
+  ]);
+
+  const hints = new Map();
+  hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.EAN_13]);
+  hints.set(DecodeHintType.TRY_HARDER, true);
+
+  const leitor = new BrowserMultiFormatReader(hints);
+  let encerrado = false;
+
+  const controles = await leitor.decodeFromConstraints(
+    // A traseira é a que aponta para o livro; resolução maior ajuda o foco a
+    // resolver as barras finas do EAN-13.
+    {
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+    },
+    video,
+    (resultado, erro) => {
+      if (encerrado) return;
+      if (resultado) {
+        const texto = resultado.getText();
+        // Descarta EAN que não é de livro em vez de encerrar: a contracapa pode
+        // ter o código de preço junto, e continuar varrendo acha o certo.
+        if (pareceIsbn(texto)) {
+          encerrado = true;
+          controles.stop();
+          aoEncontrar(texto);
+        }
+        return;
+      }
+      // Quadro sem código é o caso normal durante a varredura; só erro de
+      // dispositivo interessa.
+      if (erro && erro.name !== 'NotFoundException') aoFalhar(erro);
+    },
+  );
+
+  return {
+    parar() {
+      encerrado = true;
+      controles.stop();
+    },
+  };
+}
