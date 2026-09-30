@@ -11,7 +11,7 @@ import { migrate } from '../src/db/index.js';
  */
 
 const app = createApp();
-const handler = serverless(app);
+const expressHandler = serverless(app);
 
 /**
  * A Netlify entrega o caminho interno da função. O Express conhece as rotas por
@@ -41,7 +41,17 @@ function garantirSchema(): Promise<void> {
   return migracao;
 }
 
-export default async function netlifyHandler(event: Record<string, unknown>, context: unknown) {
+/**
+ * Exportado como `handler`, e não como `default`, de propósito.
+ *
+ * A Netlify escolhe o formato da função pelo que o módulo exporta: com
+ * `export default` ela trata como função v2 e invoca com objetos `Request`/
+ * `Response` da Web API. Este código é v1 — lê `event.path` e devolve
+ * `{ statusCode, body }`, que é o formato do `serverless-http`. Exportar como
+ * default fazia a plataforma entregar um Request onde se esperava um evento,
+ * e a função respondia 502.
+ */
+export const handler = async (event: Record<string, unknown>, context: unknown) => {
   normalizarCaminho(event);
 
   try {
@@ -55,5 +65,5 @@ export default async function netlifyHandler(event: Record<string, unknown>, con
     };
   }
 
-  return handler(event, context);
-}
+  return expressHandler(event, context);
+};
