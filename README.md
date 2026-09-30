@@ -32,7 +32,25 @@ Modo de desenvolvimento (backend com watch + Vite com HMR):
 npm run dev
 ```
 
-As credenciais do usuário de demonstração estão em `CREDENCIAIS.md` e em `backend/.env`.
+### Conta de demonstração
+
+O `npm run setup` já cria um usuário pronto para entrar:
+
+| Campo  | Valor |
+|--------|-------|
+| E-mail | `demo@biblioteca.local` |
+| Senha  | `Leitura@2026` |
+
+A conta vem com 4 livros na estante (um em leitura, um pausado, um concluído e um "quero ler"),
+histórico de progresso dos últimos dias, 2 anotações e 1 trecho salvo — o suficiente para as
+estatísticas e a busca terem conteúdo desde o primeiro acesso. Você também pode criar sua própria
+conta em **Criar conta**, na tela de login.
+
+Para trocar esse usuário, edite `SEED_NAME` / `SEED_EMAIL` / `SEED_PASSWORD` em `backend/.env`,
+apague `backend/data/biblioteca.db` e rode `npm run seed` de novo.
+
+> São credenciais de um banco SQLite local, criado na sua máquina pelo seed. Não dão acesso a
+> nenhum serviço externo.
 
 ## PWA e mobile
 
