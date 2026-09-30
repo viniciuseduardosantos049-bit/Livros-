@@ -1,11 +1,17 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "cleanUrls": true,
   "services": {
     "frontend": {
       "root": "frontend",
       "framework": "vite",
-      "outputDirectory": "dist"
+      "outputDirectory": "dist",
+      "cleanUrls": true,
+      "rewrites": [
+        {
+          "source": "/(.*)",
+          "destination": "/index.html"
+        }
+      ]
     },
     "backend": {
       "root": "backend",
@@ -18,20 +24,6 @@
       "source": "/api/(.*)",
       "destination": {
         "service": "backend"
-      }
-    },
-    {
-      "source": "/biblioteca/(.*)",
-      "destination": {
-        "service": "frontend",
-        "path": "/biblioteca.html"
-      }
-    },
-    {
-      "source": "/obras/(.*)",
-      "destination": {
-        "service": "frontend",
-        "path": "/obras.html"
       }
     },
     {
