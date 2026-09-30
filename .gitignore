@@ -12,3 +12,7 @@ CREDENCIAIS.md
 *.db
 *.db-wal
 *.db-shm
+
+# Vercel
+.vercel
+.env*

@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { createApp } from '../backend/dist/app.js';
-import { migrate } from '../backend/dist/db/index.js';
+import { createApp } from '../dist/app.js';
+import { migrate } from '../dist/db/index.js';
 
 /**
  * Ponto de entrada serverless (Vercel).

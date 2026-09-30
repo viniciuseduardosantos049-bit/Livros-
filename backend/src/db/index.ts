@@ -166,6 +166,7 @@ const aqui = path.dirname(fileURLToPath(import.meta.url));
 const CAMINHOS_SCHEMA = [
   path.resolve(aqui, 'schema.pg.sql'),
   path.resolve(env.rootDir, 'src', 'db', 'schema.pg.sql'),
+  path.resolve(process.cwd(), 'src', 'db', 'schema.pg.sql'),
   path.resolve(process.cwd(), 'backend', 'src', 'db', 'schema.pg.sql'),
 ];
 

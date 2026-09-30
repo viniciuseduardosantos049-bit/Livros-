@@ -1,14 +1,44 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm --prefix backend install && npm --prefix backend run build && npm --prefix frontend install && npm --prefix frontend run build",
-  "outputDirectory": "frontend/dist",
-  "functions": {
-    "api/index.ts": {
-      "includeFiles": "backend/src/db/**"
+  "cleanUrls": true,
+  "services": {
+    "frontend": {
+      "root": "frontend",
+      "framework": "vite",
+      "outputDirectory": "dist"
+    },
+    "backend": {
+      "root": "backend",
+      "buildCommand": "npm run build",
+      "entrypoint": "api/index.ts"
     }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    {
+      "source": "/api/(.*)",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/biblioteca/(.*)",
+      "destination": {
+        "service": "frontend",
+        "path": "/biblioteca.html"
+      }
+    },
+    {
+      "source": "/obras/(.*)",
+      "destination": {
+        "service": "frontend",
+        "path": "/obras.html"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "frontend"
+      }
+    }
   ]
 }
