@@ -57,11 +57,16 @@ export const handler = async (event: Record<string, unknown>, context: unknown) 
   try {
     await garantirSchema();
   } catch (erro) {
+    // A causa vai para o log da função; a resposta não a expõe, mas o 503
+    // distingue "não alcancei o banco" do 502 genérico de função derrubada.
     console.error('Falha ao preparar o banco:', erro);
     return {
       statusCode: 503,
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ error: 'Banco de dados indisponível' }),
+      body: JSON.stringify({
+        error: 'Banco de dados indisponível',
+        dica: 'Verifique DATABASE_URL nas variáveis do site e se o banco aceita conexões externas.',
+      }),
     };
   }
 

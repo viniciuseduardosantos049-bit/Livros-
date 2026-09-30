@@ -60,6 +60,12 @@ export const env = {
    * de 10 só consome o limite de conexões do banco sem ganho nenhum.
    */
   serverless: emServerless,
+  /**
+   * Abaixo do tempo limite da plataforma (10s na Netlify), para a falha de
+   * conexão virar uma resposta nossa em vez de a função ser morta.
+   */
+  dbConnectTimeoutMs: Number(process.env.DB_CONNECT_TIMEOUT_MS ?? 5000),
+  dbStatementTimeoutMs: Number(process.env.DB_STATEMENT_TIMEOUT_MS ?? 8000),
   openLibraryBaseUrl: process.env.OPEN_LIBRARY_BASE_URL ?? 'https://openlibrary.org',
   openLibraryTimeoutMs: Number(process.env.OPEN_LIBRARY_TIMEOUT_MS ?? 10000),
   aiProvider: process.env.AI_PROVIDER ?? '',

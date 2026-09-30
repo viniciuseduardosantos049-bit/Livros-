@@ -39,7 +39,19 @@ export const pool = new Pool({
   // instância não ajuda e esgota o limite do banco mais rápido.
   max: env.serverless ? 1 : 10,
   ssl: env.databaseSsl ? { rejectUnauthorized: false } : undefined,
+  /**
+   * Sem este limite, um banco inalcançável faz a conexão pendurar sem erro: a
+   * plataforma mata a função no próprio tempo limite (10s na Netlify) e devolve
+   * um 502 genérico, sem nada no log explicando a causa. Falhando antes disso,
+   * o erro é nosso e a resposta é um 503 com mensagem.
+   */
+  connectionTimeoutMillis: env.dbConnectTimeoutMs,
+  // Consulta travada segura a instância inteira; melhor abortar e responder.
+  statement_timeout: env.dbStatementTimeoutMs,
 });
+
+// Conexão ociosa que morre no servidor não pode derrubar o processo.
+pool.on('error', (erro) => console.error('Erro em conexão ociosa do Postgres:', erro));
 
 type Params = unknown[] | Record<string, unknown>;
 
