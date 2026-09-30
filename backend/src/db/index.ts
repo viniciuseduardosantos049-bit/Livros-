@@ -157,8 +157,17 @@ export const db = {
 };
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
-const caminhoSchema = path.resolve(aqui, 'schema.pg.sql');
-const caminhoAlternativo = path.resolve(env.rootDir, 'src', 'db', 'schema.pg.sql');
+
+/**
+ * Onde procurar o schema, em ordem. O terceiro caminho é o serverless: lá o
+ * código chega empacotado, `import.meta.url` aponta para o bundle e o arquivo
+ * .sql entra pela raiz da função (includeFiles no vercel.json).
+ */
+const CAMINHOS_SCHEMA = [
+  path.resolve(aqui, 'schema.pg.sql'),
+  path.resolve(env.rootDir, 'src', 'db', 'schema.pg.sql'),
+  path.resolve(process.cwd(), 'backend', 'src', 'db', 'schema.pg.sql'),
+];
 
 /**
  * Colunas acrescentadas depois que bancos já existiam. O schema só cria tabelas
@@ -170,7 +179,10 @@ const COLUNAS_ADICIONADAS: { tabela: string; coluna: string; tipo: string }[] = 
 ];
 
 export async function migrate(): Promise<void> {
-  const arquivo = fs.existsSync(caminhoSchema) ? caminhoSchema : caminhoAlternativo;
+  const arquivo = CAMINHOS_SCHEMA.find((caminho) => fs.existsSync(caminho));
+  if (!arquivo) {
+    throw new Error(`schema.pg.sql não encontrado. Procurei em:\n  ${CAMINHOS_SCHEMA.join('\n  ')}`);
+  }
   await db.exec(fs.readFileSync(arquivo, 'utf8'));
 
   for (const { tabela, coluna, tipo } of COLUNAS_ADICIONADAS) {
