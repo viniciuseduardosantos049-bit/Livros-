@@ -179,12 +179,28 @@ const COLUNAS_ADICIONADAS: { tabela: string; coluna: string; tipo: string }[] = 
   { tabela: 'book_editions', coluna: 'cover_url', tipo: 'TEXT' },
 ];
 
+/** O schema já foi aplicado alguma vez neste banco? */
+async function schemaJaExiste(): Promise<boolean> {
+  const linha = (await db
+    .prepare("SELECT to_regclass('public.users') IS NOT NULL AS existe")
+    .get()) as { existe: boolean } | undefined;
+  return linha?.existe === true;
+}
+
 export async function migrate(): Promise<void> {
   const arquivo = CAMINHOS_SCHEMA.find((caminho) => fs.existsSync(caminho));
-  if (!arquivo) {
-    throw new Error(`schema.pg.sql não encontrado. Procurei em:\n  ${CAMINHOS_SCHEMA.join('\n  ')}`);
+
+  if (arquivo) {
+    await db.exec(fs.readFileSync(arquivo, 'utf8'));
+  } else if (await schemaJaExiste()) {
+    // Empacotamentos que não levam o .sql junto ainda funcionam contra um banco
+    // já provisionado — só não conseguem criar um do zero.
+    console.warn('[db] schema.pg.sql não encontrado; o banco já tem as tabelas, seguindo.');
+  } else {
+    throw new Error(
+      `schema.pg.sql não encontrado e o banco está vazio. Procurei em:\n  ${CAMINHOS_SCHEMA.join('\n  ')}`,
+    );
   }
-  await db.exec(fs.readFileSync(arquivo, 'utf8'));
 
   for (const { tabela, coluna, tipo } of COLUNAS_ADICIONADAS) {
     // IF NOT EXISTS existe no ADD COLUMN do PostgreSQL, então é idempotente.
