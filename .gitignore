@@ -22,4 +22,3 @@ netlify/functions/api.mjs
 netlify/functions/schema.pg.sql
 
 # Pasta montada para arrastar no Netlify (gerada por npm run netlify:pasta)
-deploy-netlify
