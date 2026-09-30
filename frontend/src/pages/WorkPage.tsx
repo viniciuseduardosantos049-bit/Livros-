@@ -110,6 +110,11 @@ export default function WorkPage() {
                   </div>
                   <div className="small" style={{ color: edition.numberOfPages ? 'var(--accent-strong)' : 'var(--text-muted)' }}>
                     {edition.numberOfPages ? `${edition.numberOfPages} páginas` : 'Total de páginas não informado'}
+                    {edition.pagesSource === 'google' && (
+                      <span className="muted" title="A Open Library não tinha esse dado; veio do Google Books pelo ISBN desta edição">
+                        {' '}(via Google Books)
+                      </span>
+                    )}
                     {edition.isbn ? ` · ISBN ${edition.isbn}` : ''}
                   </div>
                 </div>

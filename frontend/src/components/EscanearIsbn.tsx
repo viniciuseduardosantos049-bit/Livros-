@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 import type { IsbnLookup } from '../api/types';
@@ -7,6 +7,7 @@ import { Cover, Spinner } from './ui';
 
 type Estado =
   | { fase: 'ocioso' }
+  | { fase: 'camera' }
   | { fase: 'lendo' }
   | { fase: 'consultando'; isbn: string }
   | { fase: 'achou'; livro: IsbnLookup }
@@ -23,7 +24,22 @@ type Estado =
 export default function EscanearIsbn({ onUsarTermo }: { onUsarTermo: (termo: string) => void }) {
   const [aberto, setAberto] = useState(false);
   const [estado, setEstado] = useState<Estado>({ fase: 'ocioso' });
-  const inputArquivo = useRef<HTMLInputElement>(null);
+  const inputGaleria = useRef<HTMLInputElement>(null);
+  const inputCamera = useRef<HTMLInputElement>(null);
+
+  /**
+   * Câmera ao vivo exige contexto seguro (https ou localhost). No celular
+   * acessando o servidor por IP da rede em http isso não existe — aí usamos o
+   * input com capture, que abre a câmera do próprio sistema e funciona igual.
+   */
+  function temCameraAoVivo(): boolean {
+    return window.isSecureContext && typeof navigator.mediaDevices?.getUserMedia === 'function';
+  }
+
+  async function tirarFoto() {
+    if (temCameraAoVivo()) setEstado({ fase: 'camera' });
+    else inputCamera.current?.click();
+  }
 
   async function consultar(isbn: string) {
     setEstado({ fase: 'consultando', isbn });
@@ -54,7 +70,9 @@ export default function EscanearIsbn({ onUsarTermo }: { onUsarTermo: (termo: str
 
   function reiniciar() {
     setEstado({ fase: 'ocioso' });
-    if (inputArquivo.current) inputArquivo.current.value = '';
+    // Sem limpar o value, escolher o mesmo arquivo de novo não dispara change.
+    if (inputGaleria.current) inputGaleria.current.value = '';
+    if (inputCamera.current) inputCamera.current.value = '';
   }
 
   if (!aberto) {
@@ -76,18 +94,43 @@ export default function EscanearIsbn({ onUsarTermo }: { onUsarTermo: (termo: str
       </div>
 
       <p className="small muted" style={{ margin: '.4rem 0 .8rem' }}>
-        Envie uma foto da contracapa. O código de barras do livro é o ISBN — com ele a edição e a
-        editora vêm exatas, sem precisar escolher na lista.
+        Tire uma foto ou envie uma da galeria. O código de barras do livro é o ISBN — com ele a
+        edição e a editora vêm exatas, sem precisar escolher na lista.
       </p>
 
+      <div className="scanner-acoes">
+        <button type="button" className="btn-ghost btn-sm" onClick={() => inputGaleria.current?.click()}>
+          Enviar foto
+        </button>
+        <button type="button" className="btn-primary btn-sm" onClick={() => void tirarFoto()}>
+          Tirar foto
+        </button>
+      </div>
+
+      {/* Dois inputs escondidos: o nativo é feio e não dá para rotular os dois usos.
+          O segundo leva capture="environment", que abre a câmera traseira do
+          sistema — funciona em http, ao contrário do getUserMedia. */}
       <input
-        ref={inputArquivo}
+        ref={inputGaleria}
         type="file"
         accept="image/*"
-        className="scanner-input"
+        className="visualmente-oculto"
         onChange={(e) => void aoEscolherArquivo(e.target.files?.[0])}
-        aria-label="Foto do código de barras"
+        aria-label="Enviar foto do código de barras"
       />
+      <input
+        ref={inputCamera}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="visualmente-oculto"
+        onChange={(e) => void aoEscolherArquivo(e.target.files?.[0])}
+        aria-label="Tirar foto do código de barras"
+      />
+
+      {estado.fase === 'camera' && (
+        <CameraAoVivo onCapturar={(arquivo) => void aoEscolherArquivo(arquivo)} onCancelar={reiniciar} />
+      )}
 
       {estado.fase === 'lendo' && <Spinner label="Lendo o código de barras..." />}
       {estado.fase === 'consultando' && <Spinner label={`Procurando o ISBN ${estado.isbn}...`} />}
@@ -177,5 +220,85 @@ function DigitarIsbn({ onEnviar }: { onEnviar: (isbn: string) => void }) {
       />
       <button type="submit" className="btn-ghost btn-sm" disabled={!podeEnviar}>Procurar</button>
     </form>
+  );
+}
+
+/**
+ * Câmera ao vivo, usada só onde `getUserMedia` existe (https ou localhost).
+ * Prefere a traseira (`facingMode: environment`) porque o código de barras está
+ * na contracapa do livro que a pessoa segura à frente.
+ */
+function CameraAoVivo({
+  onCapturar, onCancelar,
+}: { onCapturar: (arquivo: File) => void; onCancelar: () => void }) {
+  const video = useRef<HTMLVideoElement>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const stream = useRef<MediaStream | null>(null);
+
+  const encerrar = useCallback(() => {
+    stream.current?.getTracks().forEach((t) => t.stop());
+    stream.current = null;
+  }, []);
+
+  useEffect(() => {
+    let cancelado = false;
+    navigator.mediaDevices
+      .getUserMedia({ video: { facingMode: { ideal: 'environment' } } })
+      .then((s) => {
+        if (cancelado) { s.getTracks().forEach((t) => t.stop()); return; }
+        stream.current = s;
+        if (video.current) video.current.srcObject = s;
+      })
+      .catch((err: unknown) => {
+        setErro(
+          err instanceof DOMException && err.name === 'NotAllowedError'
+            ? 'Permissão de câmera negada. Libere nas configurações do navegador ou use "Enviar foto".'
+            : 'Não consegui abrir a câmera. Use "Enviar foto".',
+        );
+      });
+
+    // Encerrar a trilha é obrigatório: sem isso a luz da câmera fica acesa.
+    return () => { cancelado = true; encerrar(); };
+  }, [encerrar]);
+
+  function capturar() {
+    const el = video.current;
+    if (!el || !el.videoWidth) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = el.videoWidth;
+    canvas.height = el.videoHeight;
+    canvas.getContext('2d')?.drawImage(el, 0, 0);
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      encerrar();
+      onCapturar(new File([blob], 'codigo-de-barras.png', { type: 'image/png' }));
+    }, 'image/png');
+  }
+
+  if (erro) {
+    return (
+      <div className="scanner-erro">
+        <p className="small" style={{ margin: 0 }}>{erro}</p>
+        <button type="button" className="btn-ghost btn-sm" style={{ marginTop: '.5rem' }} onClick={onCancelar}>
+          Voltar
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="scanner-camera">
+      <video ref={video} autoPlay playsInline muted aria-label="Prévia da câmera" />
+      <p className="small muted" style={{ margin: '.5rem 0' }}>
+        Enquadre só o código de barras da contracapa, com boa luz.
+      </p>
+      <div className="scanner-acoes">
+        <button type="button" className="btn-primary btn-sm" onClick={capturar}>Capturar</button>
+        <button type="button" className="btn-ghost btn-sm" onClick={() => { encerrar(); onCancelar(); }}>
+          Cancelar
+        </button>
+      </div>
+    </div>
   );
 }

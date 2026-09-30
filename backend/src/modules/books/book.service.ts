@@ -92,6 +92,9 @@ export interface CustomEditionInput {
  * Camada de domínio para livros. As rotas nunca falam com a Open Library
  * diretamente — passam sempre por aqui, e só este serviço conhece o provider.
  */
+/** Teto de consultas extras por página listada, para não estourar a cota do Google. */
+const MAX_PAGE_LOOKUPS_POR_PAGINA = 12;
+
 export class BookService {
   constructor(
     private readonly provider = new OpenLibraryProvider(),
@@ -179,8 +182,48 @@ export class BookService {
     };
   }
 
-  getEditions(workKey: string, page: number, perPage: number): Promise<Paginated<EditionSummary>> {
-    return this.provider.getEditions(workKey, page, perPage);
+  async getEditions(workKey: string, page: number, perPage: number): Promise<Paginated<EditionSummary>> {
+    const result = await this.provider.getEditions(workKey, page, perPage);
+    await this.preencherPaginasFaltantes(result.items);
+    return result;
+  }
+
+  /**
+   * A Open Library deixa `number_of_pages` vazio em boa parte das edições, e é
+   * justamente esse número que o app usa para calcular progresso. O Google Books
+   * costuma ter o dado — e, casando por ISBN, é a *mesma* edição, não outra com
+   * paginação diferente. Sem ISBN não tentamos: chutar páginas de outra tiragem
+   * seria pior do que deixar em branco.
+   */
+  private async preencherPaginasFaltantes(edicoes: EditionSummary[]): Promise<void> {
+    if (!this.covers.enabled) return;
+
+    const semPaginas = edicoes
+      .filter((edicao) => !edicao.numberOfPages && edicao.isbn)
+      .slice(0, MAX_PAGE_LOOKUPS_POR_PAGINA);
+    if (semPaginas.length === 0) return;
+
+    await Promise.all(
+      semPaginas.map(async (edicao) => {
+        const paginas = await this.paginasPorIsbn(edicao.isbn);
+        if (paginas) {
+          edicao.numberOfPages = paginas;
+          edicao.pagesSource = 'google';
+        }
+      }),
+    );
+  }
+
+  /** Número de páginas pelo ISBN, via Google Books. Nunca rejeita. */
+  async paginasPorIsbn(isbn: string | null): Promise<number | null> {
+    if (!isbn || !this.covers.enabled) return null;
+    try {
+      const volume = await this.covers.findVolumeByIsbn(isbn);
+      const paginas = volume?.pageCount;
+      return typeof paginas === 'number' && paginas > 0 ? paginas : null;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -193,11 +236,11 @@ export class BookService {
   }
 
   /** Grava (ou atualiza) a obra no cache local e devolve o id interno. */
-  private upsertWork(work: WorkDetail | WorkSummary): number {
+  private async upsertWork(work: WorkDetail | WorkSummary): Promise<number> {
     const key = normalizeWorkKey(work.workKey);
-    db.prepare(
+    await db.prepare(
       `INSERT INTO book_works (ol_work_key, title, authors, cover_id, cover_url, first_publish_year, subjects, synced_at)
-       VALUES (@key, @title, @authors, @coverId, @coverUrl, @year, @subjects, datetime('now'))
+       VALUES (@key, @title, @authors, @coverId, @coverUrl, @year, @subjects, now())
        ON CONFLICT(ol_work_key) DO UPDATE SET
          title = excluded.title,
          authors = excluded.authors,
@@ -205,7 +248,7 @@ export class BookService {
          cover_url = COALESCE(excluded.cover_url, book_works.cover_url),
          first_publish_year = COALESCE(excluded.first_publish_year, book_works.first_publish_year),
          subjects = excluded.subjects,
-         synced_at = datetime('now')`,
+         synced_at = now()`,
     ).run({
       key,
       title: work.title,
@@ -218,7 +261,7 @@ export class BookService {
       subjects: JSON.stringify('subjects' in work ? (work.subjects ?? []) : []),
     });
 
-    const row = db.prepare('SELECT id FROM book_works WHERE ol_work_key = ?').get(key) as { id: number };
+    const row = await db.prepare('SELECT id FROM book_works WHERE ol_work_key = ?').get(key) as { id: number };
     return row.id;
   }
 
@@ -231,7 +274,7 @@ export class BookService {
 
     if (editionKey) {
       const normalizedEdition = normalizeEditionKey(editionKey);
-      const existing = db
+      const existing = await db
         .prepare('SELECT * FROM book_editions WHERE ol_edition_key = ?')
         .get(normalizedEdition) as EditionRow | undefined;
       if (existing) return existing;
@@ -244,7 +287,7 @@ export class BookService {
       ]);
       const workId = this.upsertWork(work);
 
-      db.prepare(
+      await db.prepare(
         `INSERT INTO book_editions
            (work_id, ol_edition_key, title, publisher, publish_date, number_of_pages, isbn, language, cover_id, cover_url, is_custom)
          VALUES (@workId, @key, @title, @publisher, @publishDate, @pages, @isbn, @language, @coverId, @coverUrl, 0)`,
@@ -261,13 +304,13 @@ export class BookService {
         coverUrl: edition.coverId || work.coverId ? null : await this.capaExterna(edition, work),
       });
 
-      return db.prepare('SELECT * FROM book_editions WHERE ol_edition_key = ?').get(edition.editionKey) as EditionRow;
+      return await db.prepare('SELECT * FROM book_editions WHERE ol_edition_key = ?').get(edition.editionKey) as EditionRow;
     }
 
     // Edição manual: o usuário tem uma cópia que não está catalogada na Open Library.
     const work = await this.provider.getWork(normalizedWork);
     const workId = this.upsertWork(work);
-    const info = db.prepare(
+    const info = await db.prepare(
       `INSERT INTO book_editions
          (work_id, ol_edition_key, title, publisher, publish_date, number_of_pages, isbn, language, cover_id, cover_url, is_custom)
        VALUES (@workId, NULL, @title, @publisher, @publishDate, @pages, NULL, NULL, @coverId, @coverUrl, 1)`,
@@ -281,7 +324,7 @@ export class BookService {
       coverUrl: work.coverId ? null : (work.coverUrl ?? null),
     });
 
-    return db.prepare('SELECT * FROM book_editions WHERE id = ?').get(info.lastInsertRowid as number) as EditionRow;
+    return await db.prepare('SELECT * FROM book_editions WHERE id = ?').get(info.lastInsertRowid as number) as EditionRow;
   }
 }
 

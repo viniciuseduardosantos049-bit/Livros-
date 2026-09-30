@@ -1,13 +1,31 @@
-import 'dotenv/config';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(here, '..', '..');
 
+// Caminho explícito em vez de 'dotenv/config': o processo é iniciado a partir da
+// raiz do repositório (scripts/dev.mjs), onde não existe .env. Depender do cwd
+// fazia o backend subir sem as variáveis conforme quem o chamava.
+dotenv.config({ path: path.resolve(rootDir, '.env') });
+
+const emProducao = (process.env.NODE_ENV ?? 'development') === 'production';
+
+/**
+ * Em produção o fallback é ignorado de propósito: subir com segredo conhecido
+ * é o mesmo que não ter autenticação — qualquer um forja um token válido.
+ * Melhor o deploy falhar no boot do que rodar inseguro em silêncio.
+ */
 function required(name: string, fallback?: string): string {
-  const value = process.env[name] ?? fallback;
-  if (!value) throw new Error(`Variável de ambiente obrigatória ausente: ${name}`);
+  const value = process.env[name] ?? (emProducao ? undefined : fallback);
+  if (!value) {
+    throw new Error(
+      emProducao
+        ? `Variável de ambiente obrigatória ausente em produção: ${name}`
+        : `Variável de ambiente obrigatória ausente: ${name}`,
+    );
+  }
   return value;
 }
 
@@ -19,9 +37,12 @@ export const env = {
   jwtSecret: required('JWT_SECRET', 'dev-secret-nao-use-em-producao'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
   cookieName: process.env.COOKIE_NAME ?? 'biblioteca_token',
-  databaseFile: process.env.DATABASE_FILE
-    ? path.resolve(rootDir, process.env.DATABASE_FILE)
-    : path.resolve(rootDir, 'data', 'biblioteca.db'),
+  /** String de conexão do PostgreSQL. Obrigatória: não há mais banco em arquivo. */
+  databaseUrl: required('DATABASE_URL'),
+  /** Provedores gerenciados (Neon, Vercel, Supabase) exigem TLS. */
+  databaseSsl: (process.env.DATABASE_SSL ?? (emProducao ? 'true' : 'false')) === 'true',
+  /** Em serverless cada requisição é um processo: 1 conexão por instância. */
+  serverless: process.env.VERCEL === '1',
   openLibraryBaseUrl: process.env.OPEN_LIBRARY_BASE_URL ?? 'https://openlibrary.org',
   openLibraryTimeoutMs: Number(process.env.OPEN_LIBRARY_TIMEOUT_MS ?? 10000),
   aiProvider: process.env.AI_PROVIDER ?? '',

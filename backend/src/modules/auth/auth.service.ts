@@ -28,20 +28,20 @@ export function toPublicUser(row: UserRow): PublicUser {
 export const authService = {
   async register(name: string, email: string, password: string): Promise<PublicUser> {
     const normalizedEmail = email.trim().toLowerCase();
-    const exists = db.prepare('SELECT id FROM users WHERE email = ?').get(normalizedEmail);
+    const exists = await db.prepare('SELECT id FROM users WHERE email = ?').get(normalizedEmail);
     if (exists) throw HttpError.conflict('Já existe uma conta com este e-mail');
 
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-    const info = db
+    const info = await db
       .prepare('INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)')
       .run(name.trim(), normalizedEmail, passwordHash);
 
-    const row = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid as number) as UserRow;
+    const row = await db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid as number) as UserRow;
     return toPublicUser(row);
   },
 
   async login(email: string, password: string): Promise<PublicUser> {
-    const row = db.prepare('SELECT * FROM users WHERE email = ?').get(email.trim().toLowerCase()) as
+    const row = await db.prepare('SELECT * FROM users WHERE email = ?').get(email.trim().toLowerCase()) as
       | UserRow
       | undefined;
 
@@ -60,8 +60,8 @@ export const authService = {
     });
   },
 
-  findById(id: number): PublicUser | null {
-    const row = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as UserRow | undefined;
+  async findById(id: number): Promise<PublicUser | null> {
+    const row = await db.prepare('SELECT * FROM users WHERE id = ?').get(id) as UserRow | undefined;
     return row ? toPublicUser(row) : null;
   },
 };

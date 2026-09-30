@@ -2,15 +2,25 @@
  * Teste de integração do isolamento por usuário: cada leitor só enxerga e
  * altera os próprios livros. Roda contra um banco temporário.
  */
+// Precisa vir antes de ler DATABASE_URL: o env.ts só carrega o .env quando é
+// importado, e aqui a URL é lida antes disso para montar o schema de teste.
+import 'dotenv/config';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { after, before, describe, it } from 'node:test';
 
-const tmpDb = path.join(os.tmpdir(), `biblioteca-test-${process.pid}.db`);
-process.env.DATABASE_FILE = tmpDb;
+/**
+ * Banco de teste isolado: um schema PostgreSQL próprio por processo, criado no
+ * before e derrubado no after. Sem isso, rodar os testes apagaria o banco de
+ * desenvolvimento — antes o isolamento vinha de um arquivo SQLite temporário.
+ *
+ * Exige um PostgreSQL acessível em TEST_DATABASE_URL (ou DATABASE_URL).
+ */
+const schemaDeTeste = `teste_${process.pid}`;
+const urlBase = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? '';
+process.env.DATABASE_URL = urlBase
+  ? `${urlBase}${urlBase.includes('?') ? '&' : '?'}options=-c%20search_path%3D${schemaDeTeste}`
+  : '';
 process.env.JWT_SECRET = 'segredo-de-teste';
 // Fixa a configuração de IA: o teste não pode depender do .env da máquina
 // (dotenv não sobrescreve variáveis já definidas no processo).
@@ -19,7 +29,7 @@ process.env.AI_API_KEY = '';
 
 let baseUrl = '';
 let server: import('node:http').Server;
-let db: import('better-sqlite3').Database;
+let db: typeof import('../../db/index.js').db;
 
 async function api(path: string, init: RequestInit & { cookie?: string } = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
@@ -46,7 +56,8 @@ async function signUp(email: string) {
 before(async () => {
   const { createApp } = await import('../../app.js');
   const dbModule = await import('../../db/index.js');
-  dbModule.migrate();
+  await dbModule.pool.query(`CREATE SCHEMA IF NOT EXISTS ${schemaDeTeste}`);
+  await dbModule.migrate();
   db = dbModule.db;
 
   server = createApp().listen(0, '127.0.0.1');
@@ -54,9 +65,11 @@ before(async () => {
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
 
-after(() => {
+after(async () => {
   server?.close();
-  for (const suffix of ['', '-wal', '-shm']) fs.rmSync(tmpDb + suffix, { force: true });
+  const dbModule = await import('../../db/index.js');
+  await dbModule.pool.query(`DROP SCHEMA IF EXISTS ${schemaDeTeste} CASCADE`);
+  await dbModule.pool.end();
 });
 
 describe('autenticação', () => {
@@ -95,17 +108,17 @@ describe('isolamento da biblioteca', () => {
     const bob = await signUp('bob@teste.local');
 
     // catálogo direto no banco: o foco aqui é a autorização, não a Open Library
-    const workId = db
+    const workId = (await db
       .prepare("INSERT INTO book_works (ol_work_key, title, authors) VALUES ('/works/OL1W', 'Obra', '[]')")
-      .run().lastInsertRowid as number;
-    const editionId = db
+      .run()).lastInsertRowid as number;
+    const editionId = (await db
       .prepare(
         "INSERT INTO book_editions (work_id, ol_edition_key, title, number_of_pages) VALUES (?, '/books/OL1M', 'Edição', 300)",
       )
-      .run(workId).lastInsertRowid as number;
-    const itemId = db
+      .run(workId)).lastInsertRowid as number;
+    const itemId = (await db
       .prepare("INSERT INTO user_library (user_id, edition_id, status, total_pages) VALUES (?, ?, 'READING', 300)")
-      .run(alice.userId, editionId).lastInsertRowid as number;
+      .run(alice.userId, editionId)).lastInsertRowid as number;
 
     const dela = await api(`/api/library/${itemId}`, { cookie: alice.cookie });
     assert.equal(dela.status, 200);
@@ -126,15 +139,15 @@ describe('isolamento da biblioteca', () => {
 describe('progresso de leitura', () => {
   it('valida a página, aceita percentual e conclui sozinho', async () => {
     const leitor = await signUp('progresso@teste.local');
-    const workId = db
+    const workId = (await db
       .prepare("INSERT INTO book_works (ol_work_key, title, authors) VALUES ('/works/OL2W', 'Obra 2', '[]')")
-      .run().lastInsertRowid as number;
-    const editionId = db
+      .run()).lastInsertRowid as number;
+    const editionId = (await db
       .prepare("INSERT INTO book_editions (work_id, ol_edition_key, title, number_of_pages) VALUES (?, '/books/OL2M', 'Edição 2', 200)")
-      .run(workId).lastInsertRowid as number;
-    const itemId = db
+      .run(workId)).lastInsertRowid as number;
+    const itemId = (await db
       .prepare("INSERT INTO user_library (user_id, edition_id, status, total_pages) VALUES (?, ?, 'WANT_TO_READ', 200)")
-      .run(leitor.userId, editionId).lastInsertRowid as number;
+      .run(leitor.userId, editionId)).lastInsertRowid as number;
 
     const alem = await api(`/api/library/${itemId}/progress`, {
       method: 'POST', cookie: leitor.cookie, body: JSON.stringify({ currentPage: 500 }),

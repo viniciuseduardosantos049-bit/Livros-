@@ -28,7 +28,7 @@ export class AiService {
     let bookTitle = input.bookTitle;
 
     if (input.libraryItemId) {
-      const book = db
+      const book = await db
         .prepare(
           `SELECT w.title AS title FROM user_library ul
              JOIN book_editions e ON e.id = ul.edition_id
@@ -39,7 +39,7 @@ export class AiService {
       if (!book) throw HttpError.notFound('Livro não encontrado na sua biblioteca');
       bookTitle = book.title;
 
-      const related = db
+      const related = await db
         .prepare(
           `SELECT text AS content FROM quotes WHERE library_item_id = @item
             UNION ALL

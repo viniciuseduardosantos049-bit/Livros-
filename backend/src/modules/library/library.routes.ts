@@ -37,7 +37,7 @@ libraryRouter.get(
         favorite: z.enum(['true', 'false']).optional(),
       })
       .parse(req.query);
-    res.json({ items: libraryService.list(req.user!.id, { ...query, favorite: query.favorite === 'true' }) });
+    res.json({ items: await libraryService.list(req.user!.id, { ...query, favorite: query.favorite === 'true' }) });
   }),
 );
 
@@ -53,14 +53,21 @@ libraryRouter.get(
   '/notes/search',
   asyncHandler(async (req, res) => {
     const { q } = z.object({ q: z.string().trim().min(2, 'Informe ao menos 2 caracteres') }).parse(req.query);
-    res.json(libraryService.searchNotes(req.user!.id, q));
+    res.json(await libraryService.searchNotes(req.user!.id, q));
   }),
 );
 
 libraryRouter.get(
   '/:id',
   asyncHandler(async (req, res) => {
-    res.json({ item: libraryService.get(req.user!.id, idParam.parse(req.params.id)) });
+    res.json({ item: await libraryService.get(req.user!.id, idParam.parse(req.params.id)) });
+  }),
+);
+
+libraryRouter.get(
+  '/:id/sugestao-paginas',
+  asyncHandler(async (req, res) => {
+    res.json(await libraryService.sugerirPaginas(req.user!.id, idParam.parse(req.params.id)));
   }),
 );
 
@@ -76,14 +83,14 @@ libraryRouter.patch(
         notes: z.string().max(5000).nullable().optional(),
       })
       .parse(req.body);
-    res.json({ item: libraryService.update(req.user!.id, idParam.parse(req.params.id), patch) });
+    res.json({ item: await libraryService.update(req.user!.id, idParam.parse(req.params.id), patch) });
   }),
 );
 
 libraryRouter.delete(
   '/:id',
   asyncHandler(async (req, res) => {
-    libraryService.remove(req.user!.id, idParam.parse(req.params.id));
+    await libraryService.remove(req.user!.id, idParam.parse(req.params.id));
     res.status(204).end();
   }),
 );
@@ -102,7 +109,7 @@ libraryRouter.post(
       })
       .parse(req.body);
 
-    const item = libraryService.updateProgress(req.user!.id, idParam.parse(req.params.id), {
+    const item = await libraryService.updateProgress(req.user!.id, idParam.parse(req.params.id), {
       page: data.currentPage,
       percent: data.percent,
       note: data.note,
@@ -114,21 +121,21 @@ libraryRouter.post(
 libraryRouter.post(
   '/:id/progress/finish',
   asyncHandler(async (req, res) => {
-    res.json({ item: libraryService.finishReading(req.user!.id, idParam.parse(req.params.id)) });
+    res.json({ item: await libraryService.finishReading(req.user!.id, idParam.parse(req.params.id)) });
   }),
 );
 
 libraryRouter.delete(
   '/:id/progress',
   asyncHandler(async (req, res) => {
-    res.json({ item: libraryService.resetProgress(req.user!.id, idParam.parse(req.params.id)) });
+    res.json({ item: await libraryService.resetProgress(req.user!.id, idParam.parse(req.params.id)) });
   }),
 );
 
 libraryRouter.get(
   '/:id/progress',
   asyncHandler(async (req, res) => {
-    res.json(libraryService.progressHistory(req.user!.id, idParam.parse(req.params.id)));
+    res.json(await libraryService.progressHistory(req.user!.id, idParam.parse(req.params.id)));
   }),
 );
 
@@ -136,7 +143,7 @@ libraryRouter.get(
 libraryRouter.get(
   '/:id/annotations',
   asyncHandler(async (req, res) => {
-    res.json({ annotations: libraryService.listAnnotations(req.user!.id, idParam.parse(req.params.id)) });
+    res.json({ annotations: await libraryService.listAnnotations(req.user!.id, idParam.parse(req.params.id)) });
   }),
 );
 
@@ -146,7 +153,7 @@ libraryRouter.post(
     const data = z
       .object({ page: pageField, title: z.string().trim().max(150).nullish(), content: z.string().trim().min(1).max(10000) })
       .parse(req.body);
-    res.status(201).json({ annotation: libraryService.createAnnotation(req.user!.id, idParam.parse(req.params.id), data) });
+    res.status(201).json({ annotation: await libraryService.createAnnotation(req.user!.id, idParam.parse(req.params.id), data) });
   }),
 );
 
@@ -157,7 +164,7 @@ libraryRouter.patch(
       .object({ page: pageField, title: z.string().trim().max(150).nullish(), content: z.string().trim().min(1).max(10000).optional() })
       .parse(req.body);
     res.json({
-      annotation: libraryService.updateAnnotation(
+      annotation: await libraryService.updateAnnotation(
         req.user!.id,
         idParam.parse(req.params.id),
         idParam.parse(req.params.annotationId),
@@ -170,7 +177,7 @@ libraryRouter.patch(
 libraryRouter.delete(
   '/:id/annotations/:annotationId',
   asyncHandler(async (req, res) => {
-    libraryService.deleteAnnotation(req.user!.id, idParam.parse(req.params.id), idParam.parse(req.params.annotationId));
+    await libraryService.deleteAnnotation(req.user!.id, idParam.parse(req.params.id), idParam.parse(req.params.annotationId));
     res.status(204).end();
   }),
 );
@@ -179,7 +186,7 @@ libraryRouter.delete(
 libraryRouter.get(
   '/:id/quotes',
   asyncHandler(async (req, res) => {
-    res.json({ quotes: libraryService.listQuotes(req.user!.id, idParam.parse(req.params.id)) });
+    res.json({ quotes: await libraryService.listQuotes(req.user!.id, idParam.parse(req.params.id)) });
   }),
 );
 
@@ -194,7 +201,7 @@ libraryRouter.post(
         isFavorite: z.boolean().optional(),
       })
       .parse(req.body);
-    res.status(201).json({ quote: libraryService.createQuote(req.user!.id, idParam.parse(req.params.id), data) });
+    res.status(201).json({ quote: await libraryService.createQuote(req.user!.id, idParam.parse(req.params.id), data) });
   }),
 );
 
@@ -210,7 +217,7 @@ libraryRouter.patch(
       })
       .parse(req.body);
     res.json({
-      quote: libraryService.updateQuote(
+      quote: await libraryService.updateQuote(
         req.user!.id,
         idParam.parse(req.params.id),
         idParam.parse(req.params.quoteId),
@@ -223,7 +230,7 @@ libraryRouter.patch(
 libraryRouter.delete(
   '/:id/quotes/:quoteId',
   asyncHandler(async (req, res) => {
-    libraryService.deleteQuote(req.user!.id, idParam.parse(req.params.id), idParam.parse(req.params.quoteId));
+    await libraryService.deleteQuote(req.user!.id, idParam.parse(req.params.id), idParam.parse(req.params.quoteId));
     res.status(204).end();
   }),
 );

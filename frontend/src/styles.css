@@ -384,12 +384,16 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 
 /* ---------- leitura do código de barras ---------- */
 .scanner { margin-top: .8rem; }
-.scanner-input {
-  width: 100%; padding: .55rem; border-radius: var(--radius-sm);
-  border: 1px dashed var(--border); background: var(--bg-soft); color: var(--text-muted);
-  font-size: .85rem; cursor: pointer;
+.scanner-acoes { display: flex; gap: .5rem; flex-wrap: wrap; }
+.visualmente-oculto {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
-.scanner-input:hover { border-color: var(--accent); }
+.scanner-camera { margin-top: .9rem; }
+.scanner-camera video {
+  width: 100%; max-width: 420px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: #000; display: block;
+}
 .scanner-erro {
   margin-top: .8rem; padding: .7rem .9rem; border-radius: var(--radius-sm);
   border: 1px solid var(--border); background: var(--bg-soft);

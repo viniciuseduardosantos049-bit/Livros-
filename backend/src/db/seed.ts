@@ -4,7 +4,7 @@
  * o fluxo real de catalogação continua sendo a Open Library.
  */
 import bcrypt from 'bcryptjs';
-import { db, migrate } from './index.js';
+import { db, migrate, pool } from './index.js';
 
 const SEED_USER = {
   name: process.env.SEED_NAME ?? 'Leitor Demo',
@@ -107,33 +107,33 @@ const BOOKS: SeedBook[] = [
   },
 ];
 
-function seed() {
-  migrate();
+async function seed(): Promise<void> {
+  await migrate();
 
-  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(SEED_USER.email) as { id: number } | undefined;
+  const existing = await db.prepare('SELECT id FROM users WHERE email = ?').get(SEED_USER.email) as { id: number } | undefined;
   if (existing) {
     console.log(`Usuário de demonstração já existe (${SEED_USER.email}). Nada a fazer.`);
     return;
   }
 
   const passwordHash = bcrypt.hashSync(SEED_USER.password, 12);
-  const userId = db
+  const userId = (await db
     .prepare('INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)')
-    .run(SEED_USER.name, SEED_USER.email, passwordHash).lastInsertRowid as number;
+    .run(SEED_USER.name, SEED_USER.email, passwordHash)).lastInsertRowid as number;
 
-  const insertWork = db.prepare(
+  const insertWork = await db.prepare(
     `INSERT INTO book_works (ol_work_key, title, authors, cover_id, first_publish_year, subjects)
      VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(ol_work_key) DO NOTHING`,
   );
-  const insertEdition = db.prepare(
+  const insertEdition = await db.prepare(
     `INSERT INTO book_editions (work_id, ol_edition_key, title, publisher, publish_date, number_of_pages, isbn, language, cover_id)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(ol_edition_key) DO NOTHING`,
   );
 
   for (const book of BOOKS) {
-    insertWork.run(book.workKey, book.title, JSON.stringify(book.authors), book.coverId, book.year, JSON.stringify(book.subjects));
-    const workId = (db.prepare('SELECT id FROM book_works WHERE ol_work_key = ?').get(book.workKey) as { id: number }).id;
-    insertEdition.run(
+    await insertWork.run(book.workKey, book.title, JSON.stringify(book.authors), book.coverId, book.year, JSON.stringify(book.subjects));
+    const workId = (await db.prepare('SELECT id FROM book_works WHERE ol_work_key = ?').get(book.workKey) as { id: number }).id;
+    await insertEdition.run(
       workId,
       book.edition.key,
       book.edition.title,
@@ -144,9 +144,9 @@ function seed() {
       book.edition.language,
       book.edition.coverId,
     );
-    const editionId = (db.prepare('SELECT id FROM book_editions WHERE ol_edition_key = ?').get(book.edition.key) as { id: number }).id;
+    const editionId = (await db.prepare('SELECT id FROM book_editions WHERE ol_edition_key = ?').get(book.edition.key) as { id: number }).id;
 
-    const itemId = db
+    const itemId = (await db
       .prepare(
         `INSERT INTO user_library (user_id, edition_id, status, total_pages, current_page, started_at, finished_at, rating, is_favorite)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -161,7 +161,7 @@ function seed() {
         book.status === 'FINISHED' ? new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString() : null,
         book.status === 'FINISHED' ? 5 : null,
         book.status === 'READING' ? 1 : 0,
-      ).lastInsertRowid as number;
+      )).lastInsertRowid as number;
 
     if (book.currentPage > 0) {
       // histórico distribuído nos últimos dias, para as estatísticas terem forma
@@ -169,35 +169,35 @@ function seed() {
       const steps = 4;
       for (let i = 1; i <= steps; i += 1) {
         const to = Math.round((book.currentPage / steps) * i);
-        db.prepare(
+        await db.prepare(
           `INSERT INTO reading_progress (library_item_id, page_from, page_to, pages_read, note, created_at)
-           VALUES (?, ?, ?, ?, ?, datetime('now', ?))`,
-        ).run(itemId, from, to, to - from, null, `-${(steps - i) * 3} days`);
+           VALUES (?, ?, ?, ?, ?, now() - make_interval(days => ?))`,
+        ).run(itemId, from, to, to - from, null, (steps - i) * 3);
         from = to;
       }
     }
   }
 
-  const crimeItem = db
+  const crimeItem = (await db
     .prepare(
       `SELECT ul.id FROM user_library ul JOIN book_editions e ON e.id = ul.edition_id
         WHERE ul.user_id = ? AND e.ol_edition_key = ?`,
     )
-    .get(userId, BOOKS[0].edition.key) as { id: number };
+    .get(userId, BOOKS[0].edition.key)) as { id: number };
 
-  db.prepare('INSERT INTO annotations (library_item_id, page, title, content) VALUES (?, ?, ?, ?)').run(
+  await db.prepare('INSERT INTO annotations (library_item_id, page, title, content) VALUES (?, ?, ?, ?)').run(
     crimeItem.id,
     76,
     'A teoria do homem extraordinário',
     'Raskólnikov separa a humanidade em ordinários e extraordinários. Vale comparar com o conceito de super-homem em Nietzsche — e lembrar que o romance é anterior.',
   );
-  db.prepare('INSERT INTO annotations (library_item_id, page, title, content) VALUES (?, ?, ?, ?)').run(
+  await db.prepare('INSERT INTO annotations (library_item_id, page, title, content) VALUES (?, ?, ?, ?)').run(
     crimeItem.id,
     198,
     'Porfíri Petróvitch',
     'O interrogatório não busca provas, busca confissão. A pressão é psicológica o tempo todo.',
   );
-  db.prepare('INSERT INTO quotes (library_item_id, page, text, comment, is_favorite) VALUES (?, ?, ?, ?, 1)').run(
+  await db.prepare('INSERT INTO quotes (library_item_id, page, text, comment, is_favorite) VALUES (?, ?, ?, ?, 1)').run(
     crimeItem.id,
     132,
     'A dor e o sofrimento são sempre inevitáveis para uma inteligência ampla e um coração profundo.',
@@ -209,4 +209,10 @@ function seed() {
   console.log('  senha : (definida em SEED_PASSWORD / CREDENCIAIS.md)');
 }
 
-seed();
+seed()
+  .then(() => pool.end())
+  .catch(async (erro) => {
+    console.error('Falha ao popular o banco:', erro);
+    await pool.end();
+    process.exit(1);
+  });

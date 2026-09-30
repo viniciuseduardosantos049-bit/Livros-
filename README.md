@@ -12,14 +12,21 @@ pesquisar entre tudo o que escreveu e ver estatísticas de leitura.
 |----------|-------------|
 | Frontend | React 19, TypeScript, Vite, React Router |
 | Backend  | Node.js, Express 5, TypeScript, Zod |
-| Banco    | SQLite (better-sqlite3), schema versionado em SQL |
+| Banco    | PostgreSQL (driver `pg`), schema versionado em SQL |
 | Auth     | JWT em cookie `httpOnly` + bcrypt (12 rounds) |
 | Catálogo | Open Library Search API |
 
 ## Como rodar
 
+Requer **PostgreSQL** rodando (14 ou superior). Crie o banco e aponte a URL:
+
 ```bash
-npm run setup   # instala dependências e cria o usuário de demonstração
+createdb biblioteca_dev
+echo 'DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/biblioteca_dev' >> backend/.env
+```
+
+```bash
+npm run setup   # instala dependências, aplica o schema e cria o usuário de demonstração
 npm start       # build do frontend + servidor em uma única porta
 ```
 
@@ -49,7 +56,7 @@ conta em **Criar conta**, na tela de login.
 Para trocar esse usuário, edite `SEED_NAME` / `SEED_EMAIL` / `SEED_PASSWORD` em `backend/.env`,
 apague `backend/data/biblioteca.db` e rode `npm run seed` de novo.
 
-> São credenciais de um banco SQLite local, criado na sua máquina pelo seed. Não dão acesso a
+> São credenciais de um banco PostgreSQL local, criado na sua máquina pelo seed. Não dão acesso a
 > nenhum serviço externo.
 
 ## PWA e mobile
@@ -119,6 +126,29 @@ backend/src
     ├── library   # biblioteca, progresso, anotações, trechos
     └── stats     # estatísticas e histórico
 ```
+
+### Migração de SQLite para PostgreSQL
+
+O projeto nasceu em SQLite e migrou para PostgreSQL. O schema traduzido está em
+[`backend/src/db/schema.pg.sql`](backend/src/db/schema.pg.sql), com as decisões que não foram
+conversão mecânica comentadas no próprio arquivo (identidade, `TIMESTAMPTZ`, índice único sobre
+`lower(email)` no lugar do `COLLATE NOCASE`).
+
+A camada `db.prepare(sql).get(params)` foi mantida de propósito, agora assíncrona: ela estava em
+~90 pontos do código, e preservar a forma deixou a migração mecânica em vez de uma reescrita de
+cada consulta. A tradução de `?` e `@nome` para `$1, $2…` acontece em tempo de execução, então o
+texto SQL das consultas continua o mesmo.
+
+Dois scripts de uso único acompanham a virada:
+
+```bash
+node scripts/migrar-sqlite-para-pg.mjs        # copia um banco SQLite inteiro para o PostgreSQL
+node scripts/restaurar-biblioteca.mjs         # simula a restauração a partir de um backup
+node scripts/restaurar-biblioteca.mjs --aplicar
+```
+
+Ambos leem pelo binário `sqlite3` (o `better-sqlite3` saiu do projeto) e normalizam as datas:
+o SQLite gravava texto sem fuso, sempre em UTC, e sem o `Z` o PostgreSQL leria no fuso do servidor.
 
 ## Modelo de dados
 

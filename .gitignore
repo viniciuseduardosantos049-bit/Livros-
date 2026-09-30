@@ -1,5 +1,14 @@
 node_modules
 dist
+
+# Segredos e dados locais — nunca versionar
+.env
+.env.*
+!.env.example
 backend/data
-backend/.env
 CREDENCIAIS.md
+
+# Bancos em arquivo (legado SQLite) e seus diários
+*.db
+*.db-wal
+*.db-shm

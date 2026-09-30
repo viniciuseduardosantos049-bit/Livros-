@@ -6,7 +6,7 @@ import { findFreePort } from './lib/port.js';
 const DEFAULT_START_PORT = 4300;
 
 async function main() {
-  migrate();
+  await migrate();
 
   const desired = env.port || DEFAULT_START_PORT;
   const port = await findFreePort(desired, env.host);

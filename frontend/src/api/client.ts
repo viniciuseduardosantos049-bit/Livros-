@@ -82,6 +82,9 @@ export const api = {
     request<{ item: LibraryItem }>(`/library/${id}`, { method: 'PATCH', body: body(patch) }),
   removeLibraryItem: (id: number) => request<void>(`/library/${id}`, { method: 'DELETE' }),
 
+  sugerirPaginas: (id: number) =>
+    request<{ numberOfPages: number | null; source: 'google' | null }>(`/library/${id}/sugestao-paginas`),
+
   // progresso
   updateProgress: (id: number, data: { currentPage?: number; percent?: number; note?: string }) =>
     request<{ item: LibraryItem }>(`/library/${id}/progress`, { method: 'POST', body: body(data) }),

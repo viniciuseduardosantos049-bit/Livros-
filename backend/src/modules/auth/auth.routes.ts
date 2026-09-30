@@ -25,7 +25,9 @@ function cookieOptions() {
   return {
     httpOnly: true,
     sameSite: 'lax' as const,
-    secure: env.nodeEnv === 'production' && process.env.FORCE_SECURE_COOKIE === 'true',
+    // Produção serve por HTTPS: o cookie de sessão tem de ser secure por padrão.
+    // FORCE_SECURE_COOKIE continua servindo para forçar em ambiente de teste com TLS.
+    secure: env.nodeEnv === 'production' || process.env.FORCE_SECURE_COOKIE === 'true',
     path: '/',
     maxAge: COOKIE_MAX_AGE_MS,
   };
@@ -62,7 +64,7 @@ authRouter.get(
   '/me',
   requireAuth,
   asyncHandler(async (req, res) => {
-    const user = authService.findById(req.user!.id);
+    const user = await authService.findById(req.user!.id);
     if (!user) throw HttpError.unauthorized();
     res.json({ user });
   }),

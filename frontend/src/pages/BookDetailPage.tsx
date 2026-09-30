@@ -307,6 +307,18 @@ function SettingsCard({ item, onChanged }: { item: LibraryItem; onChanged: (item
   const [totalPages, setTotalPages] = useState(item.totalPages ? String(item.totalPages) : '');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [sugestao, setSugestao] = useState<number | null>(null);
+
+  // Exemplar que entrou sem o total de páginas: o catálogo pode saber.
+  useEffect(() => {
+    if (item.totalPages) {
+      setSugestao(null);
+      return;
+    }
+    api.sugerirPaginas(item.id)
+      .then(({ numberOfPages }) => setSugestao(numberOfPages))
+      .catch(() => setSugestao(null));
+  }, [item.id, item.totalPages]);
 
   async function patch(data: Parameters<typeof api.updateLibraryItem>[1]) {
     setError(null);
@@ -344,6 +356,22 @@ function SettingsCard({ item, onChanged }: { item: LibraryItem; onChanged: (item
         <p className="small muted" style={{ margin: '.3rem 0 0' }}>
           Catálogo: {item.edition.catalogPages ? `${item.edition.catalogPages} páginas` : 'não informado'}
         </p>
+        {sugestao !== null && (
+          <p className="small" style={{ margin: '.4rem 0 0' }}>
+            <span className="muted">Google Books: {sugestao} páginas.</span>{' '}
+            <button
+              type="button"
+              className="btn-ghost btn-sm"
+              disabled={saving}
+              onClick={() => {
+                setTotalPages(String(sugestao));
+                void patch({ totalPages: sugestao });
+              }}
+            >
+              Usar
+            </button>
+          </p>
+        )}
       </div>
       <div className="field">
         <label>Avaliação</label>

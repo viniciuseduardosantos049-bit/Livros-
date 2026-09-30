@@ -19,6 +19,8 @@ export interface WorkDetail extends WorkSummary {
 }
 
 export interface EditionSummary {
+  /** De onde veio o número de páginas, quando não foi a Open Library. */
+  pagesSource?: 'google';
   editionKey: string;           // /books/OL7353617M
   title: string;
   publishers: string[];
