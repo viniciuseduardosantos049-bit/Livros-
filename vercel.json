@@ -15,8 +15,8 @@
     },
     "backend": {
       "root": "backend",
-      "buildCommand": "npm run build",
-      "entrypoint": "api/index.ts"
+      "buildCommand": "npm run build:funcao",
+      "entrypoint": "api/bundle.mjs"
     }
   },
   "rewrites": [

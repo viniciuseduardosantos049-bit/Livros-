@@ -1,0 +1,9 @@
+node_modules
+# dist local não pode subir: o detector de Express o prefere ao entrypoint
+# configurado e monta a função sem as dependências.
+backend/dist
+frontend/dist
+backend/data
+.env
+.env.*
+CREDENCIAIS.md

@@ -2,3 +2,5 @@ node_modules
 dist
 data
 .env
+api/bundle.mjs
+api/schema.pg.sql
