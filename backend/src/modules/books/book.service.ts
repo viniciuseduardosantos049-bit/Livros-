@@ -285,7 +285,7 @@ export class BookService {
         this.getWork(normalizedWork),
         this.provider.getEdition(normalizedEdition),
       ]);
-      const workId = this.upsertWork(work);
+      const workId = await this.upsertWork(work);
 
       await db.prepare(
         `INSERT INTO book_editions
@@ -309,7 +309,7 @@ export class BookService {
 
     // Edição manual: o usuário tem uma cópia que não está catalogada na Open Library.
     const work = await this.provider.getWork(normalizedWork);
-    const workId = this.upsertWork(work);
+    const workId = await this.upsertWork(work);
     const info = await db.prepare(
       `INSERT INTO book_editions
          (work_id, ol_edition_key, title, publisher, publish_date, number_of_pages, isbn, language, cover_id, cover_url, is_custom)
