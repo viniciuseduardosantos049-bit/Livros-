@@ -1,0 +1,40 @@
+[build]
+  # O frontend vira estático; o backend vira uma função só, já empacotada.
+  command = "npm --prefix frontend ci && npm --prefix frontend run build && npm --prefix backend ci && npm --prefix backend run build:netlify"
+  publish = "frontend/dist"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[functions]
+  # O bundle já vem pronto do esbuild; a Netlify só precisa empacotar o arquivo
+  # e o schema que fica ao lado dele.
+  node_bundler = "none"
+  included_files = ["netlify/functions/schema.pg.sql"]
+
+# A API responde em /api/*, como no servidor local — o frontend não sabe que
+# existe função serverless no caminho.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
+
+# Fallback do SPA: o roteamento é do lado do cliente, então qualquer rota que
+# não seja arquivo existente entrega o index.html. Arquivos estáticos têm
+# precedência sobre redirects.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

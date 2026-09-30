@@ -16,3 +16,7 @@ CREDENCIAIS.md
 # Vercel
 .vercel
 .env*
+
+# Bundles gerados no build das funções serverless
+netlify/functions/api.mjs
+netlify/functions/schema.pg.sql

@@ -10,7 +10,15 @@ const rootDir = path.resolve(here, '..', '..');
 // fazia o backend subir sem as variáveis conforme quem o chamava.
 dotenv.config({ path: path.resolve(rootDir, '.env') });
 
-const emProducao = (process.env.NODE_ENV ?? 'development') === 'production';
+/**
+ * Plataformas serverless nem sempre definem NODE_ENV no runtime da função, e
+ * delas depende coisa séria: cookie `secure`, TLS no banco e a recusa de subir
+ * com segredo padrão. Por isso a marca da própria plataforma também conta.
+ */
+const emProducao =
+  (process.env.NODE_ENV ?? 'development') === 'production' ||
+  process.env.VERCEL === '1' ||
+  process.env.NETLIFY === 'true';
 
 /**
  * Em produção o fallback é ignorado de propósito: subir com segredo conhecido

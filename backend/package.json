@@ -10,7 +10,8 @@
     "seed": "tsx src/db/seed.ts",
     "serve": "tsx src/server.ts",
     "test": "tsx --test $(find src -name '*.test.ts' | sort | tr '\\n' ' ')",
-    "build:funcao": "node scripts/empacotar-funcao.mjs"
+    "build:funcao": "node scripts/empacotar-funcao.mjs vercel",
+    "build:netlify": "node scripts/empacotar-funcao.mjs netlify"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -19,6 +20,7 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.23.0",
+    "serverless-http": "^4.0.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
