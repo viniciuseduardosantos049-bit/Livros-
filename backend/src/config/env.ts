@@ -52,7 +52,17 @@ export const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
   cookieName: process.env.COOKIE_NAME ?? 'biblioteca_token',
   /** String de conexão do PostgreSQL. Obrigatória: não há mais banco em arquivo. */
-  databaseUrl: required('DATABASE_URL'),
+  /**
+   * O banco nativo da Netlify (Neon) injeta NETLIFY_DATABASE_URL, não
+   * DATABASE_URL. Aceitamos as duas para o provisionamento pelo painel
+   * funcionar sem copiar valor na mão; DATABASE_URL tem prioridade, para um
+   * banco definido explicitamente sempre vencer o automático.
+   *
+   * A variável _UNPOOLED existe e é intencionalmente ignorada: em serverless
+   * cada instância abre a própria conexão, e sem o pooler o limite do banco
+   * estoura rápido.
+   */
+  databaseUrl: process.env.DATABASE_URL ?? required('NETLIFY_DATABASE_URL'),
   /** Provedores gerenciados (Neon, Supabase) exigem TLS. */
   databaseSsl: (process.env.DATABASE_SSL ?? (emProducao ? 'true' : 'false')) === 'true',
   /**
