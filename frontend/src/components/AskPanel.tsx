@@ -104,7 +104,7 @@ export default function AskPanel({ item, status, onSaved }: Props) {
             rows={mode === 'passage' ? 3 : 1}
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
-            placeholder={enabled ? active.placeholder : 'Assistência por IA não configurada no servidor'}
+            placeholder={enabled ? active.placeholder : 'IA não configurada'}
             disabled={!enabled}
             aria-label={active.label}
             onKeyDown={(e) => {

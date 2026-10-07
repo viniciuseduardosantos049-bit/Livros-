@@ -222,7 +222,7 @@ function ProgressTab({ item, onChanged }: { item: LibraryItem; onChanged: (item:
               required
             />
           </div>
-          <div className="field" style={{ flex: 2 }}>
+          <div className="field" style={{ flex: '2 1 12rem' }}>
             <label htmlFor="pgnote">Comentário da sessão (opcional)</label>
             <input id="pgnote" value={note} onChange={(e) => setNote(e.target.value)} placeholder="ex.: terminei a segunda parte" />
           </div>
@@ -439,7 +439,7 @@ function AnnotationsTab({ itemId, version }: { itemId: number; version: number }
             <label htmlFor="an-page">Página</label>
             <input id="an-page" type="number" min={0} value={form.page} onChange={(e) => setForm({ ...form, page: e.target.value })} />
           </div>
-          <div className="field" style={{ flex: 3 }}>
+          <div className="field" style={{ flex: '3 1 12rem' }}>
             <label htmlFor="an-title">Título (opcional)</label>
             <input id="an-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           </div>
@@ -511,7 +511,7 @@ function AnnotationCard({
             <label>Página</label>
             <input type="number" min={0} value={draft.page} onChange={(e) => setDraft({ ...draft, page: e.target.value })} />
           </div>
-          <div className="field" style={{ flex: 3 }}>
+          <div className="field" style={{ flex: '3 1 12rem' }}>
             <label>Título</label>
             <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
           </div>

@@ -217,9 +217,14 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
 }
 .card h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .07em; color: var(--text-muted); margin-bottom: 1rem; }
 
-.row { display: flex; gap: 1rem; }
+/* Utilitários de linha precisam quebrar: numa tela de 375px, quatro botões ou
+   dois campos lado a lado não cabem, e sem quebra o excesso fica cortado fora
+   da tela em vez de descer para a linha de baixo. */
+.row { display: flex; gap: 1rem; flex-wrap: wrap; }
+/* Cada campo pede ~12rem; abaixo disso a linha quebra em vez de espremer. */
+.row > * { flex: 1 1 12rem; min-width: 0; }
 .stack { display: flex; flex-direction: column; }
-.inline { display: flex; align-items: center; gap: .5rem; }
+.inline { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
 .spacer { flex: 1; }
 .small { font-size: .85rem; }
 .muted { color: var(--text-muted); }
@@ -309,8 +314,11 @@ input::placeholder { color: #a79a9d; }
 .cover-lg .cover-gerada-titulo { font-size: .95rem; -webkit-line-clamp: 6; }
 .cover-lg .cover-gerada-autor { font-size: .78rem; }
 
-.book-head { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; }
-.book-head-progress { flex: 1; min-width: 0; }
+.book-head { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+/* Base de 11rem: com a capa e o título ao lado, os três não cabem numa tela
+   estreita, então o progresso desce para a própria linha em vez de ser
+   espremido a alguns pixels e ter o botão cortado para fora da tela. */
+.book-head-progress { flex: 1 1 11rem; min-width: 0; }
 
 /* ---------- progresso ---------- */
 .progress { height: 3px; background: var(--border); border-radius: 999px; overflow: hidden; }
@@ -400,7 +408,9 @@ input::placeholder { color: #a79a9d; }
 /* ---------- IA ---------- */
 .ask { margin-bottom: calc(var(--u) * 2); }
 .ask-box { border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; background: var(--bg-soft); }
-.ask-row { display: flex; gap: .5rem; }
+.ask-row { display: flex; gap: .5rem; flex-wrap: wrap; }
+.ask-row .ask-input { flex: 1 1 11rem; }
+.ask-row > button { flex: 0 0 auto; }
 .ask-input { flex: 1; }
 .ask-modes { display: flex; gap: .4rem; margin-bottom: .6rem; flex-wrap: wrap; }
 .ask-hint { font-size: .8rem; color: var(--text-muted); margin: .5rem 0 0; }
