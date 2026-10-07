@@ -93,3 +93,8 @@ export function rodandoInstalado(): boolean {
 export function ehIos(): boolean {
   return /iphone|ipad|ipod/i.test(navigator.userAgent);
 }
+
+export function ehAndroid(): boolean {
+  return /android/i.test(navigator.userAgent);
+}
+

@@ -409,7 +409,46 @@ input::placeholder { color: #a79a9d; }
 .answer-head { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; }
 .answer-actions { display: flex; gap: .5rem; margin-top: .8rem; }
 
-/* ---------- avisos do PWA ---------- */
+/* ---------- convite de instalar, na primeira visita ---------- */
+/*
+ * Modal central, não faixa de rodapé: é a forma que mais converte, e o custo
+ * de interromper é pago uma vez só — dispensar guarda 14 dias de silêncio,
+ * instalar nunca mais mostra.
+ */
+.instalar-fundo {
+  position: fixed; inset: 0; z-index: 70;
+  background: rgba(26, 22, 23, .55);
+  display: flex; align-items: center; justify-content: center;
+  padding: 1.2rem;
+  animation: instalar-aparecer .18s ease;
+}
+@keyframes instalar-aparecer { from { opacity: 0; } }
+
+.instalar-modal {
+  width: 100%; max-width: 320px;
+  background: var(--surface);
+  border-radius: 16px;
+  padding: calc(var(--u) * 3) calc(var(--u) * 2.5);
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(26, 22, 23, .3);
+  animation: instalar-subir .22s cubic-bezier(.32, .72, 0, 1);
+}
+@keyframes instalar-subir { from { transform: translateY(12px) scale(.97); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .instalar-fundo, .instalar-modal { animation: none; } }
+
+.instalar-icone { font-size: 2.2rem; line-height: 1; margin-bottom: .5rem; }
+.instalar-titulo { display: block; font-size: 1rem; letter-spacing: -0.01em; margin-bottom: .4rem; }
+.instalar-modal p { margin: 0 0 1.1rem; line-height: 1.5; }
+.instalar-modal p svg { color: var(--accent); }
+
+.instalar-btn-principal { width: 100%; padding: .7rem; font-size: .92rem; margin-bottom: .6rem; }
+.instalar-dispensar {
+  background: none; border: none; font: inherit;
+  color: var(--text-muted); font-size: .82rem; cursor: pointer; padding: .2rem;
+}
+.instalar-dispensar:hover { color: var(--text); text-decoration: underline; }
+
+/* ---------- avisos do PWA ---------- *//* ---------- avisos do PWA ---------- */
 .convite { display: flex; align-items: center; gap: 1rem; }
 @media (max-width: 380px) { .convite { flex-direction: column; align-items: flex-start; gap: .7rem; } }
 

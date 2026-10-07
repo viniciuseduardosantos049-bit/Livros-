@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import InstalarAoAbrir from './components/InstalarAoAbrir';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
@@ -13,6 +14,10 @@ import WorkPage from './pages/WorkPage';
 export default function App() {
   return (
     <BrowserRouter>
+      {/* Fora das rotas de propósito: aparece tanto na tela de login quanto
+          logado, porque a primeira visita de quem chega ao site costuma cair
+          ali, antes mesmo de ter conta. */}
+      <InstalarAoAbrir />
       <AuthProvider>
         <Routes>
           <Route path="/entrar" element={<LoginPage />} />
