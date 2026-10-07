@@ -6,14 +6,33 @@ import { GeminiProvider } from './gemini.provider.js';
  * Escolhe o provider a partir do .env. Sem chave configurada, cai no provider
  * desligado — o app continua funcionando e a rota responde 503 com instrução.
  */
-export function createAiProvider(
-  config: { provider: string; apiKey: string; model: string; fallbackModel?: string } = {
-    provider: env.aiProvider,
-    apiKey: env.aiApiKey,
-    model: env.aiModel,
-    fallbackModel: env.aiFallbackModel,
-  },
-): AiProvider {
+export type MotivoDesligado = 'sem-provider' | 'provider-desconhecido' | 'sem-chave' | null;
+
+const CONFIG_PADRAO = () => ({
+  provider: env.aiProvider,
+  apiKey: env.aiApiKey,
+  model: env.aiModel,
+  fallbackModel: env.aiFallbackModel,
+});
+
+/**
+ * Por que a IA está desligada, sem nunca expor o valor da chave — só se ela
+ * existe. Existe porque "enabled: false" sozinho não diz qual das duas
+ * variáveis falta, e isso é justamente o que trava quem está configurando o
+ * deploy: AI_PROVIDER e AI_API_KEY são independentes, e a mensagem genérica
+ * de antes ("defina AI_API_KEY") enganava quando o problema era o provider.
+ */
+export function diagnosticarProvider(
+  config: { provider: string; apiKey: string } = CONFIG_PADRAO(),
+): MotivoDesligado {
+  const name = config.provider.trim().toLowerCase();
+  if (!name) return 'sem-provider';
+  if (name !== 'gemini') return 'provider-desconhecido';
+  if (!config.apiKey) return 'sem-chave';
+  return null;
+}
+
+export function createAiProvider(config: { provider: string; apiKey: string; model: string; fallbackModel?: string } = CONFIG_PADRAO()): AiProvider {
   const name = config.provider.trim().toLowerCase();
 
   if (name === 'gemini') {

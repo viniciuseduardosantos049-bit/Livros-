@@ -106,7 +106,8 @@ export interface NotesSearchResult {
   quotes: (Quote & { libraryItemId: number; bookTitle: string; authors: string[] })[];
 }
 
-export interface AiStatus { enabled: boolean; provider: string }
+export type AiMotivoDesligado = 'sem-provider' | 'provider-desconhecido' | 'sem-chave' | null;
+export interface AiStatus { enabled: boolean; provider: string; motivo?: AiMotivoDesligado }
 
 export interface AiExplanation { text: string; mode: string; provider: string; sources: string[] }
 

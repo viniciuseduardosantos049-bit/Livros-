@@ -43,6 +43,21 @@ export default function AskPanel({ item, status, onSaved }: Props) {
 
   const active = MODES.find((m) => m.value === mode)!;
   const enabled = status?.enabled === true;
+
+  /**
+   * "enabled: false" sozinho não diz qual das duas variáveis falta — e a
+   * mensagem genérica que havia antes ("defina AI_API_KEY") enganava sempre
+   * que o problema real era AI_PROVIDER. O motivo vem direto do backend, sem
+   * nunca expor a chave, só dizer o que falta configurar.
+   */
+  const mensagemDesligado = (() => {
+    switch (status?.motivo) {
+      case 'sem-chave': return 'defina AI_API_KEY no backend para ativar';
+      case 'provider-desconhecido': return 'AI_PROVIDER não é um valor reconhecido (use "gemini")';
+      case 'sem-provider': return 'defina AI_PROVIDER=gemini no backend para ativar';
+      default: return 'assistência por IA desligada nesta instalação';
+    }
+  })();
   const canAsk = enabled && !loading && question.trim().length >= 2;
 
   async function ask(event: FormEvent) {
@@ -134,7 +149,7 @@ export default function AskPanel({ item, status, onSaved }: Props) {
           ))}
           <span className="spacer" />
           <span className="small muted">
-            {enabled ? 'usa as suas anotações deste livro como contexto' : 'defina AI_API_KEY no backend para ativar'}
+            {enabled ? 'usa as suas anotações deste livro como contexto' : mensagemDesligado}
           </span>
         </div>
       </form>

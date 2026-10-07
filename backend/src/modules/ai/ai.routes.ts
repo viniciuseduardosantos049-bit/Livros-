@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../../lib/http.js';
 import { requireAuth } from '../../middlewares/auth.js';
+import { diagnosticarProvider } from './provider.factory.js';
 import { aiService } from './ai.service.js';
 
 export const aiRouter = Router();
@@ -9,7 +10,10 @@ aiRouter.use(requireAuth);
 
 /** Permite ao frontend esconder/desabilitar o recurso sem chutar. */
 aiRouter.get('/status', (_req, res) => {
-  res.json({ enabled: aiService.enabled, provider: aiService.providerName });
+  const enabled = aiService.enabled;
+  // O motivo nunca expõe a chave em si, só diz qual das duas variáveis falta —
+  // "enabled: false" sozinho não distingue "sem AI_PROVIDER" de "sem AI_API_KEY".
+  res.json({ enabled, provider: aiService.providerName, motivo: enabled ? null : diagnosticarProvider() });
 });
 
 aiRouter.post(
