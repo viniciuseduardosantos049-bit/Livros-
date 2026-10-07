@@ -30,6 +30,7 @@ process.env.AI_API_KEY = '';
 let baseUrl = '';
 let server: import('node:http').Server;
 let db: typeof import('../../db/index.js').db;
+let authService: typeof import('../auth/auth.service.js').authService;
 
 async function api(path: string, init: RequestInit & { cookie?: string } = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
@@ -45,13 +46,20 @@ async function api(path: string, init: RequestInit & { cookie?: string } = {}) {
   return { status: response.status, body, cookie };
 }
 
+/**
+ * Não há rota de cadastro: as contas nascem pelo serviço (o mesmo caminho do
+ * script `criar-usuario`), e a sessão vem do login normal.
+ */
 async function signUp(email: string) {
-  const { cookie, body } = await api('/api/auth/register', {
+  await authService.register('Leitor', email, SENHA_DE_TESTE);
+  const { cookie, body } = await api('/api/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ name: 'Leitor', email, password: 'senha-de-teste-123' }),
+    body: JSON.stringify({ email, password: SENHA_DE_TESTE }),
   });
   return { cookie, userId: body.user.id as number };
 }
+
+const SENHA_DE_TESTE = 'senha-de-teste-123';
 
 before(async () => {
   const { createApp } = await import('../../app.js');
@@ -59,6 +67,7 @@ before(async () => {
   await dbModule.pool.query(`CREATE SCHEMA IF NOT EXISTS ${schemaDeTeste}`);
   await dbModule.migrate();
   db = dbModule.db;
+  authService = (await import('../auth/auth.service.js')).authService;
 
   server = createApp().listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
@@ -78,13 +87,20 @@ describe('autenticação', () => {
     assert.equal((await api('/api/stats')).status, 401);
   });
 
-  it('não permite dois cadastros com o mesmo e-mail', async () => {
-    await signUp('duplicado@teste.local');
+  it('não expõe rota de cadastro', async () => {
     const { status } = await api('/api/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ name: 'Outro', email: 'duplicado@teste.local', password: 'senha-de-teste-123' }),
+      body: JSON.stringify({ name: 'Intruso', email: 'intruso@teste.local', password: 'senha-de-teste-123' }),
     });
-    assert.equal(status, 409);
+    assert.equal(status, 404);
+  });
+
+  it('não permite dois cadastros com o mesmo e-mail', async () => {
+    await signUp('duplicado@teste.local');
+    await assert.rejects(
+      () => authService.register('Outro', 'duplicado@teste.local', SENHA_DE_TESTE),
+      (erro: { status?: number }) => erro.status === 409,
+    );
   });
 
   it('rejeita senha errada sem revelar se o e-mail existe', async () => {

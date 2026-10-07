@@ -6,7 +6,6 @@ import BookDetailPage from './pages/BookDetailPage';
 import LibraryPage from './pages/LibraryPage';
 import LoginPage from './pages/LoginPage';
 import NotesSearchPage from './pages/NotesSearchPage';
-import RegisterPage from './pages/RegisterPage';
 import SearchPage from './pages/SearchPage';
 import StatsPage from './pages/StatsPage';
 import WorkPage from './pages/WorkPage';
@@ -17,7 +16,6 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/entrar" element={<LoginPage />} />
-          <Route path="/criar-conta" element={<RegisterPage />} />
 
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>

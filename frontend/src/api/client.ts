@@ -49,8 +49,6 @@ const body = (data: unknown) => JSON.stringify(data);
 
 export const api = {
   // auth
-  register: (data: { name: string; email: string; password: string }) =>
-    request<{ user: User }>('/auth/register', { method: 'POST', body: body(data) }),
   login: (data: { email: string; password: string }) =>
     request<{ user: User }>('/auth/login', { method: 'POST', body: body(data) }),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),

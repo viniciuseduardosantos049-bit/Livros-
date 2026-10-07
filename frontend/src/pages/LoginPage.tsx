@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { ApiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { ErrorBox } from '../components/ui';
@@ -47,7 +47,7 @@ export default function LoginPage() {
           {submitting ? 'Entrando...' : 'Entrar'}
         </button>
         <p className="small muted" style={{ textAlign: 'center', marginTop: '1rem', marginBottom: 0 }}>
-          Ainda não tem conta? <Link to="/criar-conta">Criar conta</Link>
+          O acesso é por convite: peça uma conta a quem administra a biblioteca.
         </p>
       </form>
     </div>

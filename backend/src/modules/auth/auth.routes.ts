@@ -5,14 +5,11 @@ import { HttpError, asyncHandler } from '../../lib/http.js';
 import { requireAuth } from '../../middlewares/auth.js';
 import { authService } from './auth.service.js';
 
-const registerSchema = z.object({
-  name: z.string().trim().min(2, 'Nome muito curto').max(80),
-  email: z.string().trim().email('E-mail inválido'),
-  password: z
-    .string()
-    .min(8, 'A senha deve ter ao menos 8 caracteres')
-    .max(72, 'A senha deve ter no máximo 72 caracteres'),
-});
+/**
+ * Não há rota de cadastro: a biblioteca é fechada e as contas são criadas à
+ * mão, com `npm run criar-usuario`. O serviço `authService.register` continua
+ * existindo porque é ele que o script (e os testes) usam.
+ */
 
 const loginSchema = z.object({
   email: z.string().trim().email('E-mail inválido'),
@@ -34,16 +31,6 @@ function cookieOptions() {
 }
 
 export const authRouter = Router();
-
-authRouter.post(
-  '/register',
-  asyncHandler(async (req, res) => {
-    const { name, email, password } = registerSchema.parse(req.body);
-    const user = await authService.register(name, email, password);
-    res.cookie(env.cookieName, authService.issueToken(user), cookieOptions());
-    res.status(201).json({ user });
-  }),
-);
 
 authRouter.post(
   '/login',
