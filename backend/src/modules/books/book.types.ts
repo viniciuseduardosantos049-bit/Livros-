@@ -11,6 +11,19 @@ export interface WorkSummary {
   readingLogCount: number;
   ratingsCount: number;
   ratingsAverage: number | null;
+  /**
+   * De onde o resultado veio. 'openlibrary' tem workKey e abre a lista de
+   * edições; 'google' não tem chave de obra e é adicionado direto.
+   */
+  fonte: 'openlibrary' | 'google';
+  /** Só em resultados do Google: dados já prontos para o cadastro direto. */
+  volume?: {
+    googleId: string;
+    publisher: string | null;
+    publishDate: string | null;
+    numberOfPages: number | null;
+    isbn: string | null;
+  };
 }
 
 export interface WorkDetail extends WorkSummary {

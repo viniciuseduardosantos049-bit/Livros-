@@ -17,6 +17,7 @@ function obra(p: Partial<WorkSummary> & { title: string }): WorkSummary {
     readingLogCount: p.readingLogCount ?? 0,
     ratingsCount: 0,
     ratingsAverage: null,
+    fonte: 'openlibrary',
   };
 }
 

@@ -1,0 +1,26 @@
+{
+  "name": "Biblioteca de Leitura",
+  "short_name": "Biblioteca",
+  "description": "Organize os livros que você já tem, acompanhe a leitura e guarde suas anotações.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "id": "/",
+  "start_url": "/biblioteca",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#12100e",
+  "theme_color": "#12100e",
+  "categories": ["books", "education", "productivity"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Pesquisar livros", "short_name": "Pesquisar", "url": "/pesquisar" },
+    { "name": "Anotações e trechos", "short_name": "Anotações", "url": "/anotacoes" },
+    { "name": "Estatísticas", "short_name": "Estatísticas", "url": "/estatisticas" }
+  ]
+}

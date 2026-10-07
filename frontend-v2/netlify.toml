@@ -1,0 +1,42 @@
+# Configuração do segundo site: a edição clara.
+#
+# Na Netlify, crie um site novo apontando para o MESMO repositório e defina
+# "Base directory" como `frontend-v2`. É isso que faz a plataforma ler este
+# arquivo em vez do netlify.toml da raiz.
+#
+# Este site publica só o estático. A API não é duplicada: `/api/*` é
+# encaminhado para o site original, que já tem a função e o banco. O encaminhamento
+# acontece no servidor da Netlify (status 200, não redirect), então o navegador
+# enxerga tudo na mesma origem — o cookie de sessão continua funcionando, o que
+# não aconteceria com uma chamada direta entre domínios, barrada pelo SameSite.
+
+[build]
+  command = "npm ci && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# A API vive no site original. Trocar esta URL é o único passo se o endereço dele mudar.
+[[redirects]]
+  from = "/api/*"
+  to = "https://portifolio-livro.netlify.app/api/:splat"
+  status = 200
+  force = true
+
+# Rotas do lado do cliente: qualquer caminho que não seja arquivo existente
+# entrega o index.html. Arquivos estáticos têm precedência sobre redirects.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

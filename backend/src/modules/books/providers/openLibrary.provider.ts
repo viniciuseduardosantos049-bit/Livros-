@@ -114,6 +114,7 @@ export class OpenLibraryProvider {
       readingLogCount: doc?.readinglog_count ?? 0,
       ratingsCount: doc?.ratings_count ?? 0,
       ratingsAverage: doc?.ratings_average ?? null,
+      fonte: 'openlibrary',
       description: readDescription(work.description),
       subjects: (work.subjects ?? []).slice(0, 12),
     };
@@ -172,6 +173,7 @@ export class OpenLibraryProvider {
       readingLogCount: doc.readinglog_count ?? 0,
       ratingsCount: doc.ratings_count ?? 0,
       ratingsAverage: doc.ratings_average ?? null,
+      fonte: 'openlibrary',
     };
   }
 

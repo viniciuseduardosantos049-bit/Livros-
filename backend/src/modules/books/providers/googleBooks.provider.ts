@@ -78,6 +78,51 @@ export class GoogleBooksProvider {
     }
   }
 
+  /**
+   * Busca no Google Books para somar aos resultados da Open Library.
+   *
+   * O Google cataloga muito título brasileiro que a Open Library não tem —
+   * sobretudo edições recentes e de editoras menores. Em troca, não fornece
+   * chave de obra: os itens daqui entram marcados como `google` e são
+   * adicionados pelo cadastro direto, não pelo fluxo de edições.
+   */
+  async search(termo: string, maxResults = 20): Promise<VolumeGoogle[]> {
+    if (!this.enabled) return [];
+
+    const url = new URL('https://www.googleapis.com/books/v1/volumes');
+    url.searchParams.set('q', termo);
+    url.searchParams.set('maxResults', String(Math.min(40, maxResults)));
+    url.searchParams.set('printType', 'books');
+    url.searchParams.set('country', 'BR');
+    if (env.googleBooksApiKey) url.searchParams.set('key', env.googleBooksApiKey);
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), env.googleBooksTimeoutMs);
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: { Accept: 'application/json', 'User-Agent': env.userAgent },
+      });
+      if (!response.ok) return [];
+
+      const data = (await response.json()) as { items?: { id?: string; volumeInfo?: GoogleVolumeInfo }[] };
+      return (data.items ?? [])
+        .filter((item): item is { id: string; volumeInfo: GoogleVolumeInfo } =>
+          Boolean(item.id && item.volumeInfo?.title))
+        .map((item) => ({
+          id: item.id,
+          info: item.volumeInfo,
+          isbn: (item.volumeInfo.industryIdentifiers ?? [])
+            .find((i) => i.type === 'ISBN_13')?.identifier ?? null,
+        }));
+    } catch {
+      // Busca é complemento: falhar aqui não pode derrubar o resultado da Open Library.
+      return [];
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   private async fetchCover(query: string): Promise<string | null> {
     const url = new URL('https://www.googleapis.com/books/v1/volumes');
     url.searchParams.set('q', query);
@@ -166,6 +211,14 @@ export interface GoogleVolumeInfo {
   publishedDate?: string;
   pageCount?: number;
   imageLinks?: { thumbnail?: string; smallThumbnail?: string };
+  industryIdentifiers?: { type: string; identifier: string }[];
+}
+
+/** Volume do Google já reduzido ao que a busca precisa. */
+export interface VolumeGoogle {
+  id: string;
+  info: GoogleVolumeInfo;
+  isbn: string | null;
 }
 
 interface GoogleVolumesResponse {

@@ -2,7 +2,7 @@ import { db } from '../../db/index.js';
 import { HttpError } from '../../lib/http.js';
 import { normalizarIsbn } from '../../lib/isbn.js';
 import type { EditionSummary, IsbnLookup, Paginated, WorkDetail, WorkSummary } from './book.types.js';
-import { GoogleBooksProvider } from './providers/googleBooks.provider.js';
+import { GoogleBooksProvider, type VolumeGoogle } from './providers/googleBooks.provider.js';
 import {
   OpenLibraryProvider,
   normalizeEditionKey,
@@ -33,6 +33,66 @@ const MAX_COVER_LOOKUPS_POR_PAGINA = 20;
  * quebra a busca: `sort=readinglog` na Open Library devolve "Les Misérables" (1.049
  * leitores) como 1º resultado de "vidas secas".
  */
+/** Normaliza para comparar títulos entre fontes: sem acento, sem pontuação. */
+function chaveDeTitulo(titulo: string, autor?: string): string {
+  const limpar = (s: string) =>
+    s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return `${limpar(titulo)}|${limpar(autor ?? '')}`;
+}
+
+function volumeParaWork(v: VolumeGoogle): WorkSummary {
+  const info = v.info;
+  const capa = (info.imageLinks?.thumbnail ?? info.imageLinks?.smallThumbnail ?? null)
+    ?.replace(/^http:/, 'https:')
+    .replace(/&?edge=curl/, '') ?? null;
+
+  return {
+    // Sem chave de obra da Open Library: usamos o id do Google como
+    // identificador, e o frontend trata pela `fonte`.
+    workKey: `google:${v.id}`,
+    title: info.subtitle ? `${info.title}: ${info.subtitle}` : (info.title ?? 'Sem título'),
+    authors: info.authors ?? [],
+    coverId: null,
+    coverUrl: capa,
+    firstPublishYear: info.publishedDate ? Number(info.publishedDate.slice(0, 4)) || null : null,
+    editionCount: 1,
+    languages: [],
+    readingLogCount: 0,
+    ratingsCount: 0,
+    ratingsAverage: null,
+    fonte: 'google',
+    volume: {
+      googleId: v.id,
+      publisher: info.publisher ?? null,
+      publishDate: info.publishedDate ?? null,
+      numberOfPages: info.pageCount ?? null,
+      isbn: v.isbn,
+    },
+  };
+}
+
+/**
+ * Junta as fontes sem repetir o mesmo livro.
+ *
+ * A Open Library vem primeiro por ter chave de obra — o que permite escolher a
+ * edição e adicionar à biblioteca. O Google entra só com o que ela não trouxe,
+ * comparado por título+autor normalizados (sem acento nem pontuação), porque as
+ * duas bases grafam de formas diferentes.
+ */
+function mesclarFontes(daOpenLibrary: WorkSummary[], doGoogle: WorkSummary[]): WorkSummary[] {
+  const vistos = new Set(daOpenLibrary.map((i) => chaveDeTitulo(i.title, i.authors[0])));
+  const novos: WorkSummary[] = [];
+
+  for (const item of doGoogle) {
+    const chave = chaveDeTitulo(item.title, item.authors[0]);
+    if (vistos.has(chave)) continue;
+    vistos.add(chave);
+    novos.push(item);
+  }
+
+  return [...daOpenLibrary, ...novos];
+}
+
 const PESOS = { relevancia: 0.45, procura: 0.30, edicoes: 0.20, capa: 0.05 };
 
 /** log10 normalizado: diferencia 1 de 100 sem deixar um best-seller esmagar o resto. */
@@ -105,7 +165,18 @@ export class BookService {
     const q = query.trim();
     if (q.length < 2) throw HttpError.badRequest('Informe ao menos 2 caracteres para pesquisar');
 
-    const result = await this.provider.search(q, page, perPage);
+    // As duas fontes em paralelo: a Open Library cataloga o acervo histórico, o
+    // Google cobre edição recente e editora menor — sobretudo no Brasil.
+    // Só a primeira página agrega; da segunda em diante o Google não pagina
+    // junto e misturar geraria repetição.
+    const [result, volumes] = await Promise.all([
+      this.provider.search(q, page, perPage),
+      page === 1 ? this.covers.search(q, perPage) : Promise.resolve([]),
+    ]);
+
+    const doGoogle = volumes.map((v) => volumeParaWork(v));
+    result.items = mesclarFontes(result.items, doGoogle).slice(0, perPage);
+
     await this.preencherCapasFaltantes(result.items);
     result.items = ordenarPorPopularidade(result.items);
     return result;
