@@ -16,13 +16,75 @@ function foiDispensadoRecentemente(): boolean {
 }
 
 /** Ícone de compartilhar do iOS: quadrado com seta para cima. Não existe como glifo Unicode confiável. */
-function IconeCompartilharIos() {
+function IconeCompartilharIos({ tamanho = 15 }: { tamanho?: number }) {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ verticalAlign: '-2px' }}>
+    <svg width={tamanho} height={tamanho} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M12 2v13" />
       <path d="M8 6l4-4 4 4" />
       <path d="M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8" />
     </svg>
+  );
+}
+
+/** "Adicionar à Tela de Início": quadrado com um mais dentro. */
+function IconeAdicionar({ tamanho = 20 }: { tamanho?: number }) {
+  return (
+    <svg width={tamanho} height={tamanho} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="3" y="3" width="18" height="18" rx="4" />
+      <path d="M12 8v8M8 12h8" />
+    </svg>
+  );
+}
+
+function Seta() {
+  return (
+    <svg className="passo-seta" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M9 5l7 7-7 7" />
+    </svg>
+  );
+}
+
+/**
+ * O caminho do iOS é manual e tem três toques em lugares diferentes — descrito
+ * em prosa, vira um parágrafo que ninguém lê. Em passos ilustrados, cada toque
+ * fica reconhecível antes da leitura.
+ *
+ * A barra do Safari aparece desenhada embaixo, apontada por uma seta, porque o
+ * botão de compartilhar fica lá e é o passo que as pessoas não encontram.
+ */
+function PassosIos() {
+  return (
+    <>
+      <ol className="passos">
+        <li className="passo">
+          <span className="passo-tile" aria-hidden><IconeCompartilharIos tamanho={20} /></span>
+          <span className="passo-texto">Toque em<br /><b>Compartilhar</b></span>
+        </li>
+        <Seta />
+        <li className="passo">
+          <span className="passo-tile" aria-hidden><IconeAdicionar /></span>
+          <span className="passo-texto">Toque em<br /><b>Adicionar à Tela de Início</b></span>
+        </li>
+        <Seta />
+        <li className="passo">
+          <span className="passo-tile passo-tile-fim" aria-hidden>OK</span>
+          <span className="passo-texto">Toque em<br /><b>Adicionar</b></span>
+        </li>
+      </ol>
+
+      {/* A seta aponta para a barra do navegador, que no iPhone fica embaixo. */}
+      <div className="passo-apontador" aria-hidden />
+
+      <div className="barra-safari" aria-hidden>
+        <span className="barra-botao">‹</span>
+        <span className="barra-url">
+          <span className="barra-linhas" />
+          {location.hostname}
+          <span className="barra-recarregar">⟳</span>
+        </span>
+        <span className="barra-botao">⧉</span>
+      </div>
+    </>
   );
 }
 
@@ -98,14 +160,24 @@ export default function InstalarAoAbrir() {
         aria-label="Instalar o aplicativo"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="instalar-icone" aria-hidden>📚</div>
-        <strong className="instalar-titulo">Deixe a Biblioteca no seu celular</strong>
+        {noIos ? (
+          <header className="instalar-topo">
+            <img className="instalar-marca" src="/icons/icon-192.png" alt="" />
+            <div className="instalar-titulos">
+              <strong className="instalar-titulo">Instalar a Biblioteca</strong>
+              <span className="small muted">Siga os passos abaixo</span>
+            </div>
+            <button type="button" className="instalar-fechar" onClick={dispensar} aria-label="Fechar">×</button>
+          </header>
+        ) : (
+          <>
+            <div className="instalar-icone" aria-hidden>📚</div>
+            <strong className="instalar-titulo">Deixe a Biblioteca no seu celular</strong>
+          </>
+        )}
 
         {noIos ? (
-          <p className="small muted">
-            Toque em <IconeCompartilharIos /> <b>Compartilhar</b>, na barra do Safari, e depois em
-            “Adicionar à Tela de Início”.
-          </p>
+          <PassosIos />
         ) : podeInstalarAgora ? (
           <p className="small muted">Abre em tela cheia, como um aplicativo, e funciona sem internet.</p>
         ) : (
@@ -118,9 +190,11 @@ export default function InstalarAoAbrir() {
           </button>
         )}
 
-        <button type="button" className="instalar-dispensar" onClick={dispensar}>
-          {noIos || !podeInstalarAgora ? 'Entendi' : 'Agora não'}
-        </button>
+        {!noIos && (
+          <button type="button" className="instalar-dispensar" onClick={dispensar}>
+            {podeInstalarAgora ? 'Agora não' : 'Entendi'}
+          </button>
+        )}
       </div>
     </div>
   );
