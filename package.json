@@ -12,7 +12,6 @@
     "dev:api": "npm --prefix backend run dev",
     "dev:web": "npm --prefix frontend run dev",
     "build": "npm --prefix frontend run build",
-    "start": "npm run build && npm --prefix backend run serve",
-    "dev:claro": "npm --prefix frontend-v2 run dev"
+    "start": "npm run build && npm --prefix backend run serve"
   }
 }

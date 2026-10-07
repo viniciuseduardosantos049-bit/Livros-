@@ -1,56 +1,65 @@
-import { NavLink, Outlet, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { InstallButton, OfflineBar, UpdateBar } from './PwaBanners';
+import { useState } from 'react';
+import { NavLink, Outlet } from 'react-router-dom';
+import RegistrarLeitura from './RegistrarLeitura';
+import { OfflineBar, UpdateBar } from './PwaBanners';
 
-// `curto` e `icone` são o que aparece na barra inferior do celular.
-const links = [
-  { to: '/biblioteca', label: 'Minha biblioteca', curto: 'Estante', icone: '❧' },
-  { to: '/pesquisar', label: 'Pesquisar livros', curto: 'Pesquisar', icone: '⌕' },
-  { to: '/anotacoes', label: 'Anotações e trechos', curto: 'Anotações', icone: '✎' },
-  { to: '/estatisticas', label: 'Estatísticas', curto: 'Números', icone: '◴' },
+/**
+ * Casca de aplicativo de celular.
+ *
+ * Diferente da versão web, aqui não há barra no topo nem navegação por menu: as
+ * abas ficam embaixo, ao alcance do polegar, e cada tela ocupa a altura inteira
+ * com rolagem própria. No desktop a mesma casca vira uma faixa central estreita,
+ * em vez de esticar — o layout foi desenhado para uma coluna.
+ *
+ * O botão central não é uma aba: registrar progresso é a ação que se repete toda
+ * vez que alguém fecha o livro, então ela fica no lugar mais acessível da tela
+ * em vez de ficar escondida dentro do detalhe de cada livro.
+ */
+const abas = [
+  { to: '/biblioteca', curto: 'Estante', icone: '▤' },
+  { to: '/pesquisar', curto: 'Buscar', icone: '⌕' },
+  { to: '/anotacoes', curto: 'Notas', icone: '✎' },
+  { to: '/estatisticas', curto: 'Você', icone: '◴' },
 ];
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const [registrando, setRegistrando] = useState(false);
 
   return (
     <div className="app">
-      <header className="topbar">
-        <Link to="/biblioteca" className="brand">
-          <span className="dot">❧</span> Biblioteca de Leitura
-        </Link>
-        <nav className="nav nav-desktop">
-          {links.map((link) => (
-            <NavLink key={link.to} to={link.to} className={({ isActive }) => (isActive ? 'active' : '')}>
-              {link.label}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="topbar-user">
-          <InstallButton />
-          <span className="nome-usuario">{user?.name}</span>
-          <button type="button" className="btn-ghost btn-sm" onClick={() => void logout()}>
-            Sair
-          </button>
-        </div>
-      </header>
-
       <OfflineBar />
       <UpdateBar />
 
-      <main className="container">
+      <main className="tela">
         <Outlet />
       </main>
 
-      {/* No celular a navegação vai para o polegar. */}
-      <nav className="nav-mobile" aria-label="Navegação principal">
-        {links.map((link) => (
-          <NavLink key={link.to} to={link.to} className={({ isActive }) => (isActive ? 'active' : '')}>
-            <span aria-hidden>{link.icone}</span>
-            {link.curto}
+      <nav className="abas" aria-label="Navegação principal">
+        {abas.slice(0, 2).map((aba) => (
+          <NavLink key={aba.to} to={aba.to} className={({ isActive }) => (isActive ? 'aba ativa' : 'aba')}>
+            <span className="aba-icone" aria-hidden>{aba.icone}</span>
+            <span className="aba-texto">{aba.curto}</span>
+          </NavLink>
+        ))}
+
+        <button
+          type="button"
+          className="aba-acao"
+          onClick={() => setRegistrando(true)}
+          aria-label="Registrar leitura"
+        >
+          <span aria-hidden>+</span>
+        </button>
+
+        {abas.slice(2).map((aba) => (
+          <NavLink key={aba.to} to={aba.to} className={({ isActive }) => (isActive ? 'aba ativa' : 'aba')}>
+            <span className="aba-icone" aria-hidden>{aba.icone}</span>
+            <span className="aba-texto">{aba.curto}</span>
           </NavLink>
         ))}
       </nav>
+
+      {registrando && <RegistrarLeitura onFechar={() => setRegistrando(false)} />}
     </div>
   );
 }
