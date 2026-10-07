@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 import { STATUS_LABELS, STATUS_ORDER, type ReadingNow, type Stats } from '../api/types';
+import { ConviteInstalar } from '../components/PwaBanners';
 import { Cover, EmptyState, ErrorBox, Spinner, formatDate } from '../components/ui';
 
 export default function StatsPage() {
@@ -45,6 +46,11 @@ export default function StatsPage() {
           <p>Onde você parou, em que ritmo vai e o que registrou pelo caminho.</p>
         </div>
       </div>
+
+      {/* A aba "Você" é onde o app guarda o que é da conta, não dos livros —
+          por isso o convite para instalar mora aqui. Ele some sozinho quando o
+          app já está instalado ou quando o navegador não suporta. */}
+      <ConviteInstalar />
 
       {foco ? <LivroEmFoco livro={foco} /> : <NadaEmLeitura />}
 

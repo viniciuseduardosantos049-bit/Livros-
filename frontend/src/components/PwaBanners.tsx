@@ -79,11 +79,8 @@ export function UpdateBar() {
  * Botão de instalar. No Chrome/Edge/Android usa o convite nativo; no iOS, que
  * não oferece esse evento, explica o caminho manual — uma vez só.
  */
-export function InstallButton() {
+export function ConviteInstalar() {
   const [disponivel, setDisponivel] = useState(podeInstalar());
-  const [dicaIos, setDicaIos] = useState(false);
-  const instalado = rodandoInstalado();
-  const iosPendente = ehIos() && !instalado && localStorage.getItem('pwa-dica-ios') !== 'vista';
 
   useEffect(() => {
     const aviso = () => setDisponivel(podeInstalar());
@@ -91,58 +88,26 @@ export function InstallButton() {
     return () => window.removeEventListener(EVENTO_INSTALAVEL, aviso);
   }, []);
 
-  if (instalado) return null;
+  if (rodandoInstalado()) return null;
 
-  if (disponivel) {
-    return (
-      <button type="button" className="btn-ghost btn-sm" onClick={() => void instalar()}>
-        ⤓ Instalar
-      </button>
-    );
-  }
-
-  if (!iosPendente) return null;
+  const noIos = ehIos();
+  if (!disponivel && !noIos) return null;
 
   return (
-    <>
-      <button type="button" className="btn-ghost btn-sm" onClick={() => setDicaIos(true)}>
-        ⤓ Instalar
-      </button>
-      {dicaIos && (
-        <div
-          className="modal-backdrop"
-          role="dialog"
-          aria-modal="true"
-          onClick={() => {
-            localStorage.setItem('pwa-dica-ios', 'vista');
-            setDicaIos(false);
-          }}
-        >
-          <div className="modal" onClick={(event) => event.stopPropagation()}>
-            <h2>Instalar no iPhone</h2>
-            <p className="small muted">
-              O Safari não oferece o botão automático. Para deixar a Biblioteca na tela de início:
-            </p>
-            <ol className="small" style={{ paddingLeft: '1.2rem', lineHeight: 1.9 }}>
-              <li>Toque em <strong>Compartilhar</strong> na barra do Safari.</li>
-              <li>Escolha <strong>Adicionar à Tela de Início</strong>.</li>
-              <li>Confirme em <strong>Adicionar</strong>.</li>
-            </ol>
-            <div className="inline" style={{ justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                className="btn-primary btn-sm"
-                onClick={() => {
-                  localStorage.setItem('pwa-dica-ios', 'vista');
-                  setDicaIos(false);
-                }}
-              >
-                Entendi
-              </button>
-            </div>
-          </div>
-        </div>
+    <div className="card convite" style={{ marginBottom: '1.5rem' }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <strong style={{ fontSize: '.92rem' }}>Deixe na tela de início</strong>
+        <p className="small muted" style={{ margin: '.15rem 0 0' }}>
+          {noIos && !disponivel
+            ? 'No iPhone: toque em Compartilhar e escolha “Adicionar à Tela de Início”.'
+            : 'Abre como aplicativo, em tela cheia, e funciona sem internet.'}
+        </p>
+      </div>
+      {disponivel && (
+        <button type="button" className="btn-primary btn-sm" onClick={() => void instalar()}>
+          Instalar
+        </button>
       )}
-    </>
+    </div>
   );
 }
