@@ -3,7 +3,48 @@ import { Link } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 import { STATUS_LABELS, STATUS_ORDER, type ReadingNow, type Stats } from '../api/types';
 import { ConviteInstalar } from '../components/PwaBanners';
+import { useAuth } from '../context/AuthContext';
 import { Cover, EmptyState, ErrorBox, Spinner, formatDate } from '../components/ui';
+
+/**
+ * Identidade e saída da conta.
+ *
+ * A aba "Você" é a única tela que fala da conta, e o redesenho para celular
+ * tirou a barra do topo onde o "Sair" morava — sem isto não há como trocar de
+ * usuário em lugar nenhum do app.
+ */
+function Conta() {
+  const { user, logout } = useAuth();
+  const [saindo, setSaindo] = useState(false);
+
+  if (!user) return null;
+
+  const inicial = user.name.trim().charAt(0).toUpperCase() || '?';
+
+  async function sair() {
+    setSaindo(true);
+    try {
+      // Sem navegação explícita: a rota protegida devolve para /entrar assim
+      // que a sessão cai.
+      await logout();
+    } finally {
+      setSaindo(false);
+    }
+  }
+
+  return (
+    <section className="card conta" aria-label="Sua conta">
+      <span className="conta-inicial" aria-hidden>{inicial}</span>
+      <div className="conta-dados">
+        <strong>{user.name}</strong>
+        <p className="small muted">{user.email}</p>
+      </div>
+      <button type="button" className="btn-ghost btn-sm" onClick={() => void sair()} disabled={saindo}>
+        {saindo ? 'Saindo…' : 'Sair'}
+      </button>
+    </section>
+  );
+}
 
 export default function StatsPage() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -26,11 +67,14 @@ export default function StatsPage() {
 
   if (stats.totals.books === 0) {
     return (
-      <EmptyState
-        title="Ainda não há o que medir"
-        description="Adicione livros à sua biblioteca e registre seu progresso para ver as estatísticas."
-        action={<Link className="btn-primary" to="/pesquisar" style={{ padding: '.6rem 1rem', display: 'inline-block', marginTop: '.8rem' }}>Pesquisar livros</Link>}
-      />
+      <>
+        <Conta />
+        <EmptyState
+          title="Ainda não há o que medir"
+          description="Adicione livros à sua biblioteca e registre seu progresso para ver as estatísticas."
+          action={<Link className="btn-primary" to="/pesquisar" style={{ padding: '.6rem 1rem', display: 'inline-block', marginTop: '.8rem' }}>Pesquisar livros</Link>}
+        />
+      </>
     );
   }
 
@@ -46,6 +90,8 @@ export default function StatsPage() {
           <p>Onde você parou, em que ritmo vai e o que registrou pelo caminho.</p>
         </div>
       </div>
+
+      <Conta />
 
       {/* A aba "Você" é onde o app guarda o que é da conta, não dos livros —
           por isso o convite para instalar mora aqui. Ele some sozinho quando o
