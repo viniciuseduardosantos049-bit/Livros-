@@ -6,6 +6,7 @@
   "scripts": {
     "setup": "npm --prefix backend install && npm --prefix frontend install && npm --prefix backend run seed",
     "seed": "npm --prefix backend run seed",
+    "criar-usuario": "npm --prefix backend run criar-usuario --",
     "icones": "node scripts/gerar-icones.mjs",
     "ia:chave": "node scripts/set-ai-key.mjs",
     "dev": "node scripts/dev.mjs",

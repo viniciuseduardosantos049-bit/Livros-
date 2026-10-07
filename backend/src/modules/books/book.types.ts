@@ -16,6 +16,12 @@ export interface WorkSummary {
    * edições; 'google' não tem chave de obra e é adicionado direto.
    */
   fonte: 'openlibrary' | 'google';
+  /** ISBNs conhecidos da obra, usados para deduplicar entre as fontes. */
+  isbns?: string[];
+  /** Edição que a Open Library elegeu como representativa (a da capa). */
+  coverEditionKey?: string | null;
+  /** Título catalogado, quando foi substituído pelo da edição na língua da busca. */
+  tituloOriginal?: string;
   /** Só em resultados do Google: dados já prontos para o cadastro direto. */
   volume?: {
     googleId: string;

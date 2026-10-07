@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ApiError, api } from '../api/client';
 import type { LibraryItem } from '../api/types';
 import { Cover, Spinner } from './ui';
@@ -21,6 +21,9 @@ export default function RegistrarLeitura({ onFechar }: { onFechar: () => void })
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [pronto, setPronto] = useState(false);
+  const fechamento = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => { if (fechamento.current) clearTimeout(fechamento.current); }, []);
 
   useEffect(() => {
     api
@@ -49,8 +52,19 @@ export default function RegistrarLeitura({ onFechar }: { onFechar: () => void })
 
   async function salvar() {
     if (!escolhido) return;
+
+    // Campo vazio precisa ser recusado explicitamente: Number('') é 0, passaria
+    // na checagem de finito e salvaria página 0 — o que o servidor interpreta
+    // como "voltou à estaca zero" e zera o progresso do livro.
+    if (pagina.trim() === '') { setErro('Informe a página.'); return; }
+
     const numero = Number(pagina);
-    if (!Number.isFinite(numero) || numero < 0) { setErro('Informe a página.'); return; }
+    if (!Number.isFinite(numero) || numero < 0) { setErro('Informe uma página válida.'); return; }
+
+    // O atributo max do input não impede envio; sem esta checagem, um erro de
+    // digitação marcaria o livro como concluído.
+    const total = escolhido.totalPages;
+    if (total && numero > total) { setErro(`Este exemplar tem ${total} páginas.`); return; }
 
     setSalvando(true);
     setErro(null);
@@ -58,15 +72,19 @@ export default function RegistrarLeitura({ onFechar }: { onFechar: () => void })
       await api.updateProgress(escolhido.id, { currentPage: numero });
       setPronto(true);
       // Fecha sozinha: a confirmação é o próprio sumiço, não mais um toque.
-      setTimeout(onFechar, 900);
+      // Guardado para ser cancelado no desmonte — sem isso, fechar a folha na
+      // mão durante a espera dispararia onFechar duas vezes.
+      fechamento.current = setTimeout(onFechar, 900);
     } catch (err) {
       setErro(err instanceof ApiError ? err.message : 'Não consegui salvar.');
       setSalvando(false);
     }
   }
 
-  const total = escolhido?.totalPages ?? null;
-  const percentual = total && Number(pagina) >= 0 ? Math.min(100, Math.round((Number(pagina) / total) * 100)) : null;
+  const totalExibido = escolhido?.totalPages ?? null;
+  const percentual = totalExibido && Number(pagina) >= 0
+    ? Math.min(100, Math.round((Number(pagina) / totalExibido) * 100))
+    : null;
 
   return (
     <div className="folha-fundo" onClick={onFechar} role="presentation">
@@ -117,7 +135,7 @@ export default function RegistrarLeitura({ onFechar }: { onFechar: () => void })
             <h2 className="folha-titulo">{escolhido.work.title}</h2>
             <p className="muted small" style={{ margin: '0 0 1.2rem' }}>
               estava na página {escolhido.currentPage}
-              {total ? ` de ${total}` : ''}
+              {totalExibido ? ` de ${totalExibido}` : ''}
             </p>
 
             <div className="folha-numero">
@@ -128,10 +146,10 @@ export default function RegistrarLeitura({ onFechar }: { onFechar: () => void })
                 onChange={(e) => setPagina(e.target.value)}
                 aria-label="Página atual"
                 min={0}
-                max={total ?? undefined}
+                max={totalExibido ?? undefined}
                 autoFocus
               />
-              {total && <span className="folha-de">de {total}</span>}
+              {totalExibido && <span className="folha-de">de {totalExibido}</span>}
             </div>
 
             {percentual !== null && (

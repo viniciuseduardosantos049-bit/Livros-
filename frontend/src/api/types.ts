@@ -24,6 +24,17 @@ export interface WorkSummary {
   readingLogCount: number;
   ratingsCount: number;
   ratingsAverage: number | null;
+  fonte: 'openlibrary' | 'google';
+  /** Título catalogado, quando foi substituído pelo da edição na língua da busca. */
+  tituloOriginal?: string;
+  /** Só em resultados do Google: dados prontos para identificar a edição. */
+  volume?: {
+    googleId: string;
+    publisher: string | null;
+    publishDate: string | null;
+    numberOfPages: number | null;
+    isbn: string | null;
+  };
 }
 
 export interface WorkDetail extends WorkSummary {

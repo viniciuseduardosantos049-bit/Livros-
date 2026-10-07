@@ -10,7 +10,8 @@
     "seed": "tsx src/db/seed.ts",
     "serve": "tsx src/server.ts",
     "test": "tsx --test $(find src -name '*.test.ts' | sort | tr '\\n' ' ')",
-    "build:netlify": "node scripts/empacotar-funcao.mjs netlify"
+    "build:netlify": "node scripts/empacotar-funcao.mjs netlify",
+    "criar-usuario": "tsx src/db/criar-usuario.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

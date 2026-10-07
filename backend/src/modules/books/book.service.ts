@@ -23,6 +23,12 @@ import {
 const MAX_COVER_LOOKUPS_POR_PAGINA = 20;
 
 /**
+ * Teto de consultas para corrigir título transliterado. Menor que o das capas
+ * porque o sintoma é raro: só entram os itens cujo título não casa com a busca.
+ */
+const MAX_TITULOS_POR_PAGINA = 6;
+
+/**
  * Pesos do ordenamento dos resultados de busca.
  *
  * Nenhuma das fontes expõe venda: `edition_count` é o proxy mais próximo (uma obra
@@ -33,11 +39,27 @@ const MAX_COVER_LOOKUPS_POR_PAGINA = 20;
  * quebra a busca: `sort=readinglog` na Open Library devolve "Les Misérables" (1.049
  * leitores) como 1º resultado de "vidas secas".
  */
-/** Normaliza para comparar títulos entre fontes: sem acento, sem pontuação. */
-function chaveDeTitulo(titulo: string, autor?: string): string {
-  const limpar = (s: string) =>
-    s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+/**
+ * Normaliza para comparar títulos entre fontes: sem acento, sem pontuação.
+ *
+ * Remover tudo que não é [a-z0-9] zerava qualquer título em alfabeto não latino
+ * — russo, japonês e grego viravam a mesma string vazia, e livros diferentes
+ * colidiam como duplicata. Quando a limpeza não deixa nada, caímos para o texto
+ * original em minúsculas, que distingue os títulos entre si.
+ */
+export function chaveDeTitulo(titulo: string, autor?: string): string {
+  const limpar = (s: string) => {
+    const semAcento = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const soLatino = semAcento.replace(/[^a-z0-9]+/g, ' ').trim();
+    return soLatino || semAcento.replace(/\s+/g, ' ').trim();
+  };
   return `${limpar(titulo)}|${limpar(autor ?? '')}`;
+}
+
+/** ISBN-13 normalizado, para comparar edições entre as duas fontes. */
+function isbnsDe(item: WorkSummary): string[] {
+  const brutos = item.fonte === 'google' ? [item.volume?.isbn] : (item.isbns ?? []);
+  return brutos.filter((i): i is string => Boolean(i)).map((i) => i.replace(/[^0-9Xx]/g, ''));
 }
 
 function volumeParaWork(v: VolumeGoogle): WorkSummary {
@@ -80,13 +102,18 @@ function volumeParaWork(v: VolumeGoogle): WorkSummary {
  * duas bases grafam de formas diferentes.
  */
 function mesclarFontes(daOpenLibrary: WorkSummary[], doGoogle: WorkSummary[]): WorkSummary[] {
-  const vistos = new Set(daOpenLibrary.map((i) => chaveDeTitulo(i.title, i.authors[0])));
+  const titulosVistos = new Set(daOpenLibrary.map((i) => chaveDeTitulo(i.title, i.authors[0])));
+  // ISBN pega o que o título não pega: a mesma edição grafada de formas diferentes.
+  const isbnsVistos = new Set(daOpenLibrary.flatMap(isbnsDe));
   const novos: WorkSummary[] = [];
 
   for (const item of doGoogle) {
     const chave = chaveDeTitulo(item.title, item.authors[0]);
-    if (vistos.has(chave)) continue;
-    vistos.add(chave);
+    if (titulosVistos.has(chave)) continue;
+    if (isbnsDe(item).some((i) => isbnsVistos.has(i))) continue;
+
+    titulosVistos.add(chave);
+    isbnsDe(item).forEach((i) => isbnsVistos.add(i));
     novos.push(item);
   }
 
@@ -175,10 +202,17 @@ export class BookService {
     ]);
 
     const doGoogle = volumes.map((v) => volumeParaWork(v));
-    result.items = mesclarFontes(result.items, doGoogle).slice(0, perPage);
 
-    await this.preencherCapasFaltantes(result.items);
-    result.items = ordenarPorPopularidade(result.items);
+    // Ordenar ANTES de cortar. Cortando primeiro, os itens do Google — que são
+    // anexados no fim — eram descartados sempre que a Open Library enchia a
+    // página sozinha, e a agregação só funcionava em busca de poucos resultados.
+    const mesclado = ordenarPorPopularidade(mesclarFontes(result.items, doGoogle));
+    result.items = mesclado.slice(0, perPage);
+
+    await Promise.all([
+      this.preencherCapasFaltantes(result.items),
+      this.corrigirTitulosTransliterados(result.items, q),
+    ]);
     return result;
   }
 
@@ -186,6 +220,47 @@ export class BookService {
     const work = await this.provider.getWork(workKey);
     await this.preencherCapasFaltantes([work]);
     return work;
+  }
+
+  /**
+   * Troca o título da obra pelo da edição de capa quando o catalogado não é o
+   * que o leitor procurou.
+   *
+   * A Open Library guarda o título da OBRA, que costuma ser o original ou uma
+   * transliteração: quem busca "memórias do subsolo" recebe "Zapiski Iz
+   * Podpolia", com a capa da edição brasileira — título e imagem não combinam.
+   * A edição de capa tem o título na língua daquela edição.
+   *
+   * Só age quando o título catalogado não compartilha nenhuma palavra com a
+   * busca, que é exatamente o sintoma. Sem esse corte, seriam 20 consultas
+   * extras por página para corrigir casos que já estão certos.
+   */
+  private async corrigirTitulosTransliterados(items: WorkSummary[], consulta: string): Promise<void> {
+    const palavras = (texto: string) =>
+      new Set(
+        texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+          .split(/[^a-z0-9]+/).filter((p) => p.length > 2),
+      );
+
+    const daBusca = palavras(consulta);
+    if (daBusca.size === 0) return;
+
+    const candidatos = items
+      .filter((i) => i.fonte === 'openlibrary' && i.coverEditionKey)
+      .filter((i) => ![...palavras(i.title)].some((p) => daBusca.has(p)))
+      .slice(0, MAX_TITULOS_POR_PAGINA);
+
+    await Promise.all(
+      candidatos.map(async (item) => {
+        const titulo = await this.provider.getTituloDaEdicao(item.coverEditionKey!);
+        // Só troca se o título da edição de fato responde à busca; senão a obra
+        // simplesmente tem outro nome e trocar seria pior.
+        if (titulo && [...palavras(titulo)].some((p) => daBusca.has(p))) {
+          item.tituloOriginal = item.title;
+          item.title = titulo;
+        }
+      }),
+    );
   }
 
   /**

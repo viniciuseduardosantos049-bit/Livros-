@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 import type { Paginated, WorkSummary } from '../api/types';
 import { useDebounce } from '../hooks/useDebounce';
@@ -113,6 +113,12 @@ export default function SearchPage() {
                 <Cover url={work.coverUrl} title={work.title} authors={work.authors} seedKey={work.workKey} />
                 <div className="book-info">
                   <h3 className="book-title clamp-2">{work.title}</h3>
+                  {work.tituloOriginal && (
+                    // O catálogo registra a obra pelo título original; mostramos
+                    // o da edição em destaque e o catalogado abaixo, para quem
+                    // reconhece o livro pelo nome original.
+                    <p className="small muted" style={{ margin: '-.1rem 0 .2rem' }}>{work.tituloOriginal}</p>
+                  )}
                   <p className="book-author clamp-2">{work.authors.join(', ') || 'Autor desconhecido'}</p>
                   <p className="small muted" style={{ margin: '0 0 .6rem' }}>
                     {work.firstPublishYear ? `${work.firstPublishYear} · ` : ''}
@@ -125,9 +131,16 @@ export default function SearchPage() {
                       </>
                     )}
                   </p>
-                  <Link className="btn-ghost btn-sm" to={`/obras/${work.workKey.replace('/works/', '')}`} style={{ display: 'inline-block' }}>
-                    Ver detalhes
-                  </Link>
+                  {work.fonte === 'google' ? (
+                    // Sem chave de obra da Open Library não há ficha para abrir:
+                    // /obras/google:XXX não é rota válida. O ISBN leva ao mesmo
+                    // fluxo do leitor de código de barras, que resolve a edição.
+                    <AcaoGoogle work={work} onUsarTermo={setTerm} />
+                  ) : (
+                    <Link className="btn-ghost btn-sm" to={`/obras/${work.workKey.replace('/works/', '')}`} style={{ display: 'inline-block' }}>
+                      Ver detalhes
+                    </Link>
+                  )}
                 </div>
               </article>
             ))}
@@ -136,5 +149,53 @@ export default function SearchPage() {
         </>
       )}
     </>
+  );
+}
+
+/**
+ * Ação de um resultado vindo do Google Books.
+ *
+ * Esses itens não têm chave de obra da Open Library, então não existe ficha para
+ * abrir — montar /obras/google:XXX produzia um 400. Quando há ISBN, usamos o
+ * mesmo caminho do leitor de código de barras: se a edição estiver catalogada na
+ * Open Library, a ficha abre normalmente. Sem ISBN, sobra jogar o título na
+ * busca, onde a Open Library pode ter a obra com outro nome.
+ */
+function AcaoGoogle({ work, onUsarTermo }: { work: WorkSummary; onUsarTermo: (t: string) => void }) {
+  const navigate = useNavigate();
+  const [estado, setEstado] = useState<'ocioso' | 'buscando' | 'semFicha'>('ocioso');
+  const isbn = work.volume?.isbn ?? null;
+
+  async function abrirPeloIsbn() {
+    if (!isbn) return;
+    setEstado('buscando');
+    try {
+      const achado = await api.findByIsbn(isbn);
+      if (achado.workKey) {
+        const edicao = achado.editionKey ? `?edicao=${achado.editionKey.replace('/books/', '')}` : '';
+        navigate(`/obras/${achado.workKey.replace('/works/', '')}${edicao}`);
+        return;
+      }
+      setEstado('semFicha');
+    } catch {
+      setEstado('semFicha');
+    }
+  }
+
+  if (estado === 'semFicha' || !isbn) {
+    return (
+      <div className="stack" style={{ gap: '.3rem' }}>
+        <button type="button" className="btn-ghost btn-sm" onClick={() => onUsarTermo(work.title)}>
+          Procurar no catálogo
+        </button>
+        <span className="small muted">Não catalogado na Open Library</span>
+      </div>
+    );
+  }
+
+  return (
+    <button type="button" className="btn-ghost btn-sm" onClick={() => void abrirPeloIsbn()} disabled={estado === 'buscando'}>
+      {estado === 'buscando' ? 'Procurando...' : 'Ver detalhes'}
+    </button>
   );
 }

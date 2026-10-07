@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { ordenarPorPopularidade } from './book.service.js';
+import { chaveDeTitulo, ordenarPorPopularidade } from './book.service.js';
 import type { WorkSummary } from './book.types.js';
 
 function obra(p: Partial<WorkSummary> & { title: string }): WorkSummary {
@@ -70,5 +70,24 @@ describe('ordem dos resultados de busca', () => {
   it('não quebra com lista vazia ou de um item só', () => {
     assert.deepEqual(ordenarPorPopularidade([]), []);
     assert.equal(ordenarPorPopularidade([obra({ title: 'único' })]).length, 1);
+  });
+});
+
+describe('deduplicação entre fontes', () => {
+  it('não colapsa títulos em alfabeto não latino na mesma chave', () => {
+    // Antes, remover tudo que não era [a-z0-9] zerava russo e japonês: livros
+    // diferentes do mesmo autor colidiam como duplicata.
+    const russo = chaveDeTitulo('Записки изъ подполья', 'Dostoiévski');
+    const japones = chaveDeTitulo('罪と罰', 'Dostoiévski');
+
+    assert.notEqual(russo, japones);
+    assert.notEqual(russo.split('|')[0], '');
+  });
+
+  it('ignora acento e pontuação ao comparar títulos latinos', () => {
+    assert.equal(
+      chaveDeTitulo('Vidas Sêcas', 'Graciliano Ramos'),
+      chaveDeTitulo('vidas secas!', 'Graciliano  Ramos'),
+    );
   });
 });

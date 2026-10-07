@@ -16,6 +16,9 @@ const SEARCH_FIELDS = [
   'readinglog_count',
   'ratings_count',
   'ratings_average',
+  // Usados para deduplicar entre fontes e para recuperar o título na língua da edição.
+  'isbn',
+  'cover_edition_key',
 ].join(',');
 
 const WORK_KEY_PATTERN = /^\/works\/OL\d+W$/i;
@@ -90,6 +93,23 @@ export class OpenLibraryProvider {
     return { items, page, perPage, total, totalPages: Math.max(1, Math.ceil(total / perPage)) };
   }
 
+  /**
+   * Título da edição que a Open Library elegeu como representativa.
+   *
+   * O título da OBRA costuma ser o original ou uma transliteração — a obra de
+   * "Memórias do subsolo" está catalogada como "Zapiski Iz Podpolia". A edição
+   * da capa, por outro lado, é quase sempre a da língua do leitor. Devolve null
+   * em qualquer falha: isto é melhoria de exibição, não pode quebrar a busca.
+   */
+  async getTituloDaEdicao(editionKey: string): Promise<string | null> {
+    try {
+      const entry = await this.request<OlEdition>(`/books/${editionKey}.json`);
+      return entry.title?.trim() || null;
+    } catch {
+      return null;
+    }
+  }
+
   async getWork(workKey: string): Promise<WorkDetail> {
     const key = normalizeWorkKey(workKey);
     const work = await this.request<OlWork>(`${key}.json`);
@@ -115,6 +135,8 @@ export class OpenLibraryProvider {
       ratingsCount: doc?.ratings_count ?? 0,
       ratingsAverage: doc?.ratings_average ?? null,
       fonte: 'openlibrary',
+      isbns: doc?.isbn ?? [],
+      coverEditionKey: doc?.cover_edition_key ?? null,
       description: readDescription(work.description),
       subjects: (work.subjects ?? []).slice(0, 12),
     };
@@ -174,6 +196,8 @@ export class OpenLibraryProvider {
       ratingsCount: doc.ratings_count ?? 0,
       ratingsAverage: doc.ratings_average ?? null,
       fonte: 'openlibrary',
+      isbns: doc.isbn ?? [],
+      coverEditionKey: doc.cover_edition_key ?? null,
     };
   }
 
@@ -224,6 +248,8 @@ interface OlSearchDoc {
   readinglog_count?: number;
   ratings_count?: number;
   ratings_average?: number;
+  isbn?: string[];
+  cover_edition_key?: string;
 }
 
 interface OlWork {
