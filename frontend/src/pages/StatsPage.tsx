@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 import { STATUS_LABELS, STATUS_ORDER, type ReadingNow, type Stats } from '../api/types';
-import { ConviteInstalar } from '../components/PwaBanners';
+import { ConviteInstalar, LembretesPush } from '../components/PwaBanners';
 import { useAuth } from '../context/AuthContext';
 import { Cover, EmptyState, ErrorBox, Spinner, formatDate } from '../components/ui';
 
@@ -69,6 +69,7 @@ export default function StatsPage() {
     return (
       <>
         <Conta />
+        <LembretesPush />
         <EmptyState
           title="Ainda não há o que medir"
           description="Adicione livros à sua biblioteca e registre seu progresso para ver as estatísticas."
@@ -97,6 +98,7 @@ export default function StatsPage() {
           por isso o convite para instalar mora aqui. Ele some sozinho quando o
           app já está instalado ou quando o navegador não suporta. */}
       <ConviteInstalar />
+      <LembretesPush />
 
       {foco ? <LivroEmFoco livro={foco} /> : <NadaEmLeitura />}
 

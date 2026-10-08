@@ -123,6 +123,44 @@ async function responderCapa(request) {
   }
 }
 
+/** Lembrete de leitura mandado pelo backend (ver push.service.ts). */
+self.addEventListener('push', (event) => {
+  let dados = { title: 'Biblioteca de Leitura', body: 'Você tem uma novidade por aqui.', url: '/biblioteca' };
+  try {
+    if (event.data) dados = { ...dados, ...event.data.json() };
+  } catch {
+    // Payload sem JSON válido: segue com o texto padrão em vez de falhar a notificação.
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(dados.title, {
+      body: dados.body,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192-maskable.png',
+      data: { url: dados.url },
+    }),
+  );
+});
+
+/** Foca a aba já aberta em vez de abrir uma nova, se o app já estiver aberto. */
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const destino = event.notification.data?.url ?? '/biblioteca';
+
+  event.waitUntil(
+    (async () => {
+      const clientes = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const aberto = clientes.find((c) => new URL(c.url).origin === self.location.origin);
+      if (aberto) {
+        await aberto.focus();
+        aberto.navigate(destino);
+      } else {
+        await self.clients.openWindow(destino);
+      }
+    })(),
+  );
+});
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;

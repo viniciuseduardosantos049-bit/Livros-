@@ -7,6 +7,7 @@ import { aiRouter } from './modules/ai/ai.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { bookRouter } from './modules/books/book.routes.js';
 import { libraryRouter } from './modules/library/library.routes.js';
+import { pushRouter } from './modules/push/push.routes.js';
 import { statsRouter } from './modules/stats/stats.routes.js';
 import { errorHandler, notFoundHandler } from './middlewares/error.js';
 import { rateLimit } from './middlewares/rateLimit.js';
@@ -26,6 +27,7 @@ export function createApp() {
   app.use('/api/library', libraryRouter);
   app.use('/api/stats', statsRouter);
   app.use('/api/ai', rateLimit({ windowMs: 60_000, max: 30 }), aiRouter);
+  app.use('/api/push', rateLimit({ windowMs: 60_000, max: 20 }), pushRouter);
 
   app.use('/api', notFoundHandler);
 

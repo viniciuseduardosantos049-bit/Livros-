@@ -90,6 +90,16 @@ export const env = {
   userAgent:
     process.env.OPEN_LIBRARY_USER_AGENT ??
     'BibliotecaDeLeitura/1.0 (projeto de portfolio; contato via github)',
+  /**
+   * Lembretes de leitura por push. Sem as duas chaves, o recurso fica
+   * desligado de forma controlada — mesmo padrão da assistência por IA.
+   */
+  vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? '',
+  vapidPrivateKey: process.env.VAPID_PRIVATE_KEY ?? '',
+  vapidSubject: process.env.VAPID_SUBJECT ?? 'mailto:contato@biblioteca.local',
+  pushDiasInatividade: Number(process.env.PUSH_DIAS_INATIVIDADE ?? 3),
+  /** Autoriza o gatilho externo (cron) a disparar os lembretes. */
+  cronSecret: process.env.CRON_SECRET ?? '',
   rootDir,
   /** dist do frontend servido pelo próprio backend em produção */
   frontendDist: path.resolve(rootDir, '..', 'frontend', 'dist'),

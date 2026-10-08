@@ -1,6 +1,6 @@
 import type {
   AiExplanation, AiStatus, Annotation, EditionSummary, IsbnLookup, LibraryItem, NotesSearchResult, Paginated,
-  ProgressEntry, ProgressSummary, Quote, ReadingStatus, Stats, User, WorkDetail, WorkSummary,
+  ProgressEntry, ProgressSummary, PushChavePublica, Quote, ReadingStatus, Stats, User, WorkDetail, WorkSummary,
 } from './types';
 
 /** Disparado a cada resposta: detail=true quando veio do cache do service worker. */
@@ -117,6 +117,9 @@ export const api = {
   aiStatus: () => request<AiStatus>('/ai/status'),
   aiExplain: (data: { text: string; mode?: 'word' | 'passage' | 'concept'; context?: string; libraryItemId?: number }) =>
     request<{ explanation: AiExplanation }>('/ai/explain', { method: 'POST', body: body(data) }),
+
+  // lembretes por push (ponto de extensão — hoje responde desligado sem as chaves VAPID)
+  pushChavePublica: () => request<PushChavePublica>('/push/chave-publica'),
 };
 
 /** /works/OL166894W -> OL166894W (a rota aceita só o id) */

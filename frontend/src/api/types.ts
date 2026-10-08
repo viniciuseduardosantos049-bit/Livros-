@@ -109,6 +109,8 @@ export interface NotesSearchResult {
 export type AiMotivoDesligado = 'sem-provider' | 'provider-desconhecido' | 'sem-chave' | null;
 export interface AiStatus { enabled: boolean; provider: string; motivo?: AiMotivoDesligado }
 
+export interface PushChavePublica { enabled: boolean; publicKey: string | null }
+
 export interface AiExplanation { text: string; mode: string; provider: string; sources: string[] }
 
 export interface Stats {
