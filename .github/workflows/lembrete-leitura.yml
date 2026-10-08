@@ -1,0 +1,20 @@
+name: Lembrete de leitura
+
+# A Netlify (plano gratuito) não tem agendador embutido para funções, então o
+# disparo diário mora aqui — o repositório já está no GitHub, sem precisar de
+# conta em mais nenhum serviço.
+on:
+  schedule:
+    # 12:00 UTC = 09:00 em Brasília (sem horário de verão atualmente).
+    - cron: '0 12 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  disparar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar a rota de lembretes
+        run: |
+          curl --fail -sS -X POST \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            https://portifolio-livro.netlify.app/api/push/lembretes-cron
