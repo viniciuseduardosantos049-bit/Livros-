@@ -35,6 +35,13 @@
     Cache-Control = "no-cache"
 
 [[headers]]
+  # Sem este Content-Type o Chrome não reconhece o arquivo como manifest e
+  # nunca considera o app instalável — nenhum prompt de instalação aparece.
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"
+
+[[headers]]
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
