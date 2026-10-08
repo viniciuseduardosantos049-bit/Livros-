@@ -4,17 +4,6 @@ import {
   ehAndroid, ehIos, instalar, podeInstalar, rodandoInstalado,
 } from '../pwa';
 
-const CHAVE_DISPENSADO = 'pwa-prompt-dispensado-em';
-/** Depois de dispensado, só volta a perguntar passado esse tempo. */
-const DIAS_ATE_PERGUNTAR_DE_NOVO = 14;
-
-function foiDispensadoRecentemente(): boolean {
-  const quando = localStorage.getItem(CHAVE_DISPENSADO);
-  if (!quando) return false;
-  const dias = (Date.now() - Number(quando)) / (1000 * 60 * 60 * 24);
-  return dias < DIAS_ATE_PERGUNTAR_DE_NOVO;
-}
-
 /** Ícone de compartilhar do iOS: quadrado com seta para cima. Não existe como glifo Unicode confiável. */
 function IconeCompartilharIos({ tamanho = 15 }: { tamanho?: number }) {
   return (
@@ -92,9 +81,9 @@ function PassosIos() {
  * Convite de instalação que aparece sozinho na primeira visita, sem esperar
  * que o usuário navegue até a aba Você.
  *
- * Modal central, não faixa discreta: é a opção que mais converte, e o custo —
- * interromper por um instante — só é pago uma vez, porque dispensar guarda 14
- * dias de silêncio e instalar nunca mostra de novo.
+ * Modal central, não faixa discreta: é a opção que mais converte. Dispensar
+ * não guarda silêncio — volta a aparecer em toda visita, até o app ser
+ * instalado de fato (pedido explícito: o usuário quer ser lembrado sempre).
  *
  * Fica fora da área autenticada de propósito: a maior parte de quem chega ao
  * site pela primeira vez cai na tela de login, e é ali — antes mesmo de criar
@@ -113,7 +102,6 @@ export default function InstalarAoAbrir() {
   useEffect(() => {
     if (!noIos && !noAndroid) return;
     if (rodandoInstalado()) return;
-    if (foiDispensadoRecentemente()) return;
 
     // Pequeno atraso: a primeira coisa que a tela mostra deve ser a própria
     // tela, não um modal por cima dela.
@@ -138,7 +126,6 @@ export default function InstalarAoAbrir() {
   if (!visivel) return null;
 
   function dispensar() {
-    localStorage.setItem(CHAVE_DISPENSADO, String(Date.now()));
     setVisivel(false);
   }
 
