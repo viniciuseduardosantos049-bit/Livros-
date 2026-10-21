@@ -361,6 +361,22 @@ export class BookService {
   }
 
   /** Número de páginas pelo ISBN, via Google Books. Nunca rejeita. */
+  /**
+   * Número de páginas da edição escolhida, resolvido sob demanda.
+   *
+   * A listagem já completa o que falta, mas o modal de adicionar precisa do
+   * dado para a edição específica que a pessoa selecionou — inclusive quando
+   * ela chegou por outro caminho que não a listagem. Consulta barata: o
+   * provider tem cache de 10 min e o Google, de 6 h.
+   */
+  async paginasDaEdicao(editionKey: string): Promise<{ numberOfPages: number | null; fonte: 'openlibrary' | 'google' | null }> {
+    const edicao = await this.provider.getEdition(normalizeEditionKey(editionKey));
+    if (edicao.numberOfPages) return { numberOfPages: edicao.numberOfPages, fonte: 'openlibrary' };
+
+    const paginas = await this.paginasPorIsbn(edicao.isbn);
+    return { numberOfPages: paginas, fonte: paginas ? 'google' : null };
+  }
+
   async paginasPorIsbn(isbn: string | null): Promise<number | null> {
     if (!isbn || !this.covers.enabled) return null;
     try {
@@ -431,6 +447,16 @@ export class BookService {
         this.getWork(normalizedWork),
         this.provider.getEdition(normalizedEdition),
       ]);
+
+      // Simétrico ao enriquecimento da capa logo acima. getEditions() completa o
+      // número de páginas pelo Google, mas isso vive só na resposta da listagem:
+      // aqui a edição vem direto do provider, então o dado se perdia na gravação
+      // e number_of_pages ficava nulo mesmo depois de a tela ter mostrado o
+      // número. Sem ele, o progresso fica sem denominador.
+      if (!edition.numberOfPages) {
+        edition.numberOfPages = await this.paginasPorIsbn(edition.isbn);
+      }
+
       const workId = await this.upsertWork(work);
 
       await db.prepare(

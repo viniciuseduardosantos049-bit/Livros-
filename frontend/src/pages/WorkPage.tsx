@@ -193,10 +193,42 @@ function AddEditionModal({
   const [status, setStatus] = useState<ReadingStatus>('WANT_TO_READ');
   const [totalPages, setTotalPages] = useState(edition.numberOfPages ? String(edition.numberOfPages) : '');
   const [currentPage, setCurrentPage] = useState('0');
+  // De onde veio o número preenchido sozinho, para a pessoa saber que não digitou.
+  const [paginasAuto, setPaginasAuto] = useState<'openlibrary' | 'google' | null>(
+    edition.numberOfPages ? (edition.pagesSource === 'google' ? 'google' : 'openlibrary') : null,
+  );
+  const [buscandoPaginas, setBuscandoPaginas] = useState(false);
   const [title, setTitle] = useState(isManual ? work.title : edition.title);
   const [publisher, setPublisher] = useState(edition.publishers[0] ?? '');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  /*
+   * Ao escolher a edição, o número de páginas vem da própria API quando a
+   * listagem não trouxe. Só age com o campo vazio: se a pessoa já digitou o
+   * total do exemplar dela, o dado do catálogo não pode sobrescrever.
+   *
+   * `cancelado` evita preencher depois que o modal fechou ou a pessoa começou
+   * a digitar durante a consulta.
+   */
+  useEffect(() => {
+    if (isManual || edition.numberOfPages || !edition.editionKey) return undefined;
+
+    let cancelado = false;
+    setBuscandoPaginas(true);
+    api.getPaginasDaEdicao(edition.editionKey)
+      .then(({ numberOfPages, fonte }) => {
+        if (cancelado || !numberOfPages) return;
+        setTotalPages((atual) => (atual ? atual : String(numberOfPages)));
+        setPaginasAuto(fonte);
+      })
+      // Silencioso de propósito: isto é conveniência. Falhando, o campo fica
+      // vazio e a pessoa digita, que é o comportamento de sempre.
+      .catch(() => undefined)
+      .finally(() => { if (!cancelado) setBuscandoPaginas(false); });
+
+    return () => { cancelado = true; };
+  }, [isManual, edition.editionKey, edition.numberOfPages]);
 
   async function submit() {
     setError(null);
@@ -256,7 +288,18 @@ function AddEditionModal({
           </div>
           <div className="field">
             <label htmlFor="ed-total">Total de páginas do seu exemplar</label>
-            <input id="ed-total" type="number" min={1} value={totalPages} onChange={(e) => setTotalPages(e.target.value)} placeholder="ex.: 568" />
+            <input
+              id="ed-total" type="number" min={1} value={totalPages}
+              onChange={(e) => { setTotalPages(e.target.value); setPaginasAuto(null); }}
+              placeholder={buscandoPaginas ? 'buscando no catálogo...' : 'ex.: 568'}
+              aria-describedby="ed-total-ajuda"
+            />
+            <span id="ed-total-ajuda" className="small muted">
+              {buscandoPaginas && 'Procurando o total de páginas desta edição...'}
+              {!buscandoPaginas && paginasAuto === 'openlibrary' && 'Preenchido pela Open Library — ajuste se o seu exemplar for diferente.'}
+              {!buscandoPaginas && paginasAuto === 'google' && 'Preenchido pelo Google Books, pelo ISBN desta edição — ajuste se o seu exemplar for diferente.'}
+              {!buscandoPaginas && !paginasAuto && !totalPages && 'O catálogo não informa o total desta edição. Confira na última página do livro.'}
+            </span>
           </div>
           <div className="field">
             <label htmlFor="ed-current">Página atual</label>

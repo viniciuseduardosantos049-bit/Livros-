@@ -61,6 +61,10 @@ export const api = {
   findByIsbn: (isbn: string) => request<IsbnLookup>(`/books/isbn/${encodeURIComponent(isbn)}`),
   getEditions: (workKey: string, page = 1, perPage = 10) =>
     request<Paginated<EditionSummary>>(`/books/works/${encodeURIComponent(stripKey(workKey))}/editions?page=${page}&perPage=${perPage}`),
+  getPaginasDaEdicao: (editionKey: string) =>
+    request<{ numberOfPages: number | null; fonte: 'openlibrary' | 'google' | null }>(
+      `/books/editions/${encodeURIComponent(stripKey(editionKey))}/paginas`,
+    ),
 
   // biblioteca
   listLibrary: (params: { status?: ReadingStatus; q?: string } = {}) => {

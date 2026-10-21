@@ -44,6 +44,17 @@ bookRouter.get(
   }),
 );
 
+/**
+ * Páginas da edição escolhida. Rota própria porque o modal de adicionar precisa
+ * do dado para UMA edição, no momento da escolha — não para a página inteira.
+ */
+bookRouter.get(
+  '/editions/:editionKey/paginas',
+  asyncHandler(async (req, res) => {
+    res.json(await bookService.paginasDaEdicao(String(req.params.editionKey)));
+  }),
+);
+
 bookRouter.get(
   '/works/:workId/editions',
   asyncHandler(async (req, res) => {
