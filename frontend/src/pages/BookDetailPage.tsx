@@ -90,10 +90,12 @@ export default function BookDetailPage() {
           {/* O elemento principal da tela: a dúvida do leitor. */}
           <AskPanel item={item} status={aiStatus} onSaved={() => setListsVersion((v) => v + 1)} />
 
-          <div className="tabs">
-            <button type="button" className={tab === 'progresso' ? 'active' : ''} onClick={() => setTab('progresso')}>Progresso</button>
-            <button type="button" className={tab === 'anotacoes' ? 'active' : ''} onClick={() => setTab('anotacoes')}>Anotações</button>
-            <button type="button" className={tab === 'trechos' ? 'active' : ''} onClick={() => setTab('trechos')}>Frases e trechos</button>
+          {/* aria-selected não é só acessibilidade aqui: é o seletor que o CSS
+              usa para marcar a aba ativa. */}
+          <div className="tabs" role="tablist">
+            <button type="button" role="tab" aria-selected={tab === 'progresso'} onClick={() => setTab('progresso')}>Progresso</button>
+            <button type="button" role="tab" aria-selected={tab === 'anotacoes'} onClick={() => setTab('anotacoes')}>Anotações</button>
+            <button type="button" role="tab" aria-selected={tab === 'trechos'} onClick={() => setTab('trechos')}>Frases e trechos</button>
           </div>
 
           {tab === 'progresso' && <ProgressTab item={item} onChanged={setItem} />}

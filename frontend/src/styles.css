@@ -45,6 +45,19 @@
   --shadow: 0 1px 2px rgba(26, 22, 23, .07);
 
   --u: 8px; /* unidade da grade */
+
+  /*
+   * Camadas, em ordem de urgência. O convite de instalar fica abaixo dos
+   * diálogos de propósito: é a camada ambiente, que o app oferece sozinho,
+   * e nunca deve cobrir algo que a pessoa abriu de propósito.
+   */
+  --z-suspenso: 10;   /* menus, dropdowns */
+  --z-fixo: 20;       /* cabeçalho e barra inferior */
+  --z-convite: 40;    /* convite de instalar */
+  --z-modal: 50;      /* diálogos centrais */
+  --z-folha: 60;      /* folha de registro */
+  --z-aviso: 80;      /* avisos efêmeros */
+
   color-scheme: light;
 }
 
@@ -144,7 +157,7 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
 
 /* ---------- folha de registro ---------- */
 .folha-fundo {
-  position: fixed; inset: 0; z-index: 60;
+  position: fixed; inset: 0; z-index: var(--z-folha);
   background: rgba(26, 22, 23, .38);
   display: flex; align-items: flex-end; justify-content: center;
   animation: aparecer .15s ease;
@@ -258,6 +271,29 @@ input, select, textarea {
 }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 input::placeholder { color: #a79a9d; }
+
+/*
+ * Toque: tudo que se aperta com o dedo.
+ *
+ * Em ponteiro grosso (celular e tablet), não em largura de tela: um laptop
+ * estreito continua tendo mouse, e apertar os controles ali só desperdiça
+ * espaço. `pointer: coarse` pergunta pelo dedo, que é o que importa.
+ *
+ * 16px nos campos não é escolha tipográfica: abaixo disso o Safari do iPhone
+ * dá zoom sozinho ao focar, e a pessoa perde o enquadramento da tela.
+ */
+@media (pointer: coarse) {
+  input, select, textarea { font-size: 16px; min-height: 44px; }
+  textarea { min-height: 80px; }
+
+  .btn-primary, .btn-ghost, .btn-danger,
+  button.chip, .tabs button, .instalar-dispensar {
+    min-height: 44px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .btn-sm { padding: .3rem .9rem; }
+  button.chip { padding-inline: .9rem; }
+}
 
 /* ---------- avisos ---------- */
 .alert { padding: .7rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: .875rem; margin-bottom: 1rem; }
@@ -392,7 +428,7 @@ input::placeholder { color: #a79a9d; }
 .auth-card > p { text-align: center; color: var(--text-muted); font-size: .875rem; margin-bottom: 1.5rem; }
 
 /* ---------- modal ---------- */
-.modal-backdrop { position: fixed; inset: 0; background: rgba(26, 22, 23, .42); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 50; }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(26, 22, 23, .42); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: var(--z-modal); }
 .modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: calc(var(--u) * 3); max-width: 520px; width: 100%; max-height: 85vh; overflow-y: auto; box-shadow: 0 12px 32px rgba(26, 22, 23, .18); }
 
 /* ---------- leitura de código de barras ---------- */
@@ -426,7 +462,7 @@ input::placeholder { color: #a79a9d; }
  * instalar nunca mais mostra.
  */
 .instalar-fundo {
-  position: fixed; inset: 0; z-index: 70;
+  position: fixed; inset: 0; z-index: var(--z-convite);
   background: rgba(26, 22, 23, .55);
   display: flex; align-items: center; justify-content: center;
   padding: 1.2rem;
