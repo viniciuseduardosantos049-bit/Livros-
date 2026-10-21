@@ -82,21 +82,35 @@ function hueDaSemente(seed: string): number {
   return hash;
 }
 
+/** Livro aberto — mesmo traço do ícone do app, para o cartão "sem capa" ler como uma escolha de design, não como erro. */
+function IconeLivroAberto() {
+  return (
+    <svg className="cover-gerada-icone" viewBox="0 0 100 100" aria-hidden>
+      <path
+        d="M50 32 C42 26 28 24 20 26 V70 C28 68 42 70 50 76 C58 70 72 68 80 70 V26 C72 24 58 26 50 32 Z"
+        fill="none" stroke="currentColor" strokeWidth="6" strokeLinejoin="round" strokeLinecap="round"
+      />
+      <line x1="50" y1="33" x2="50" y2="75" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function CapaTipografica({
   className, title, authors, seedKey, large,
 }: { className: string; title: string; authors?: string[]; seedKey?: string; large: boolean }) {
+  // Variação sutil por livro, só na borda — o suficiente pra distinguir cartões
+  // vizinhos na grade sem que o cartão pareça um estado de carregamento ou erro.
   const hue = hueDaSemente(seedKey || title);
   const autor = authors?.[0] ?? '';
   // Título curto cabe inteiro; longo é cortado pelo CSS (-webkit-line-clamp).
   return (
     <div
       className={`${className} cover-gerada`}
-      style={{
-        background: `linear-gradient(150deg, hsl(${hue} 34% 26%), hsl(${(hue + 40) % 360} 30% 15%))`,
-      }}
+      style={{ borderLeftColor: `hsl(${hue} 42% 34%)` }}
       role="img"
       aria-label={`Capa não disponível para ${title}`}
     >
+      <IconeLivroAberto />
       <span className="cover-gerada-titulo">{title}</span>
       {large && autor && <span className="cover-gerada-autor">{autor}</span>}
     </div>
