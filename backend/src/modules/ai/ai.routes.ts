@@ -31,3 +31,10 @@ aiRouter.post(
     res.json({ explanation: await aiService.explain(req.user!.id, data) });
   }),
 );
+
+aiRouter.post(
+  '/recomendar',
+  asyncHandler(async (req, res) => {
+    res.json({ recommendation: await aiService.recommend(req.user!.id) });
+  }),
+);

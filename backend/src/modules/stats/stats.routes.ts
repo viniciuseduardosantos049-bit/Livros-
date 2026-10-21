@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { db } from '../../db/index.js';
 import { asyncHandler } from '../../lib/http.js';
 import { requireAuth } from '../../middlewares/auth.js';
@@ -6,6 +7,24 @@ import { computePace, computeStreak, pageToPercent } from '../../lib/reading.js'
 
 export const statsRouter = Router();
 statsRouter.use(requireAuth);
+
+/** Cria ou atualiza a meta de livros do ano corrente. */
+statsRouter.put(
+  '/meta',
+  asyncHandler(async (req, res) => {
+    const { target } = z.object({ target: z.coerce.number().int().min(1).max(999) }).parse(req.body);
+    const year = new Date().getFullYear();
+
+    await db
+      .prepare(
+        `INSERT INTO reading_goals (user_id, year, target) VALUES (?, ?, ?)
+         ON CONFLICT (user_id, year) DO UPDATE SET target = EXCLUDED.target, updated_at = now()`,
+      )
+      .run(req.user!.id, year, target);
+
+    res.status(204).end();
+  }),
+);
 
 statsRouter.get(
   '/',
@@ -24,6 +43,18 @@ statsRouter.get(
            FROM user_library ul WHERE ul.user_id = ?`,
       )
       .get(userId) as { books: number; pagesRead: number; averageRating: number };
+
+    // Meta do ano corrente: null quando a pessoa nunca definiu uma.
+    const ano = new Date().getFullYear();
+    const metaRow = (await db.prepare('SELECT target FROM reading_goals WHERE user_id = ? AND year = ?').get(userId, ano)) as
+      | { target: number }
+      | undefined;
+    const concluidosNoAno = (await db
+      .prepare(
+        `SELECT COUNT(*) AS total FROM user_library
+          WHERE user_id = ? AND status = 'FINISHED' AND finished_at >= ? AND finished_at < ?`,
+      )
+      .get(userId, `${ano}-01-01`, `${ano + 1}-01-01`)) as { total: number };
 
     const counters = await db
       .prepare(
@@ -129,6 +160,7 @@ statsRouter.get(
       daily,
       recent,
       reading,
+      goal: metaRow ? { year: ano, target: metaRow.target, completed: concluidosNoAno.total } : null,
     });
   }),
 );

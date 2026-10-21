@@ -111,6 +111,8 @@ export interface AiStatus { enabled: boolean; provider: string; motivo?: AiMotiv
 
 export interface PushChavePublica { enabled: boolean; publicKey: string | null }
 
+export interface AiRecommendation { title: string; authors: string; reason: string; provider: string }
+
 export interface AiExplanation { text: string; mode: string; provider: string; sources: string[] }
 
 export interface Stats {
@@ -122,6 +124,14 @@ export interface Stats {
   daily: { day: string; pages: number }[];
   recent: { id: number; pageFrom: number; pageTo: number; pagesRead: number; createdAt: string; libraryItemId: number; bookTitle: string }[];
   reading: ReadingNow[];
+  goal: ReadingGoal | null;
+}
+
+/** Meta de livros do ano corrente — null quando a pessoa nunca definiu uma. */
+export interface ReadingGoal {
+  year: number;
+  target: number;
+  completed: number;
 }
 
 /** Livro em andamento, com a projeção de ritmo já calculada pelo servidor. */

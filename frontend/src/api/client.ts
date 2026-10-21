@@ -1,6 +1,6 @@
 import type {
-  AiExplanation, AiStatus, Annotation, EditionSummary, IsbnLookup, LibraryItem, NotesSearchResult, Paginated,
-  ProgressEntry, ProgressSummary, PushChavePublica, Quote, ReadingStatus, Stats, User, WorkDetail, WorkSummary,
+  AiExplanation, AiRecommendation, AiStatus, Annotation, EditionSummary, IsbnLookup, LibraryItem, NotesSearchResult,
+  Paginated, ProgressEntry, ProgressSummary, PushChavePublica, Quote, ReadingStatus, Stats, User, WorkDetail, WorkSummary,
 } from './types';
 
 /** Disparado a cada resposta: detail=true quando veio do cache do service worker. */
@@ -112,11 +112,14 @@ export const api = {
   searchNotes: (q: string) => request<NotesSearchResult>(`/library/notes/search?q=${encodeURIComponent(q)}`),
 
   stats: () => request<Stats>('/stats'),
+  setGoal: (target: number) => request<void>('/stats/meta', { method: 'PUT', body: body({ target }) }),
 
   // IA (ponto de extensão — hoje responde 503 quando não há provider configurado)
   aiStatus: () => request<AiStatus>('/ai/status'),
   aiExplain: (data: { text: string; mode?: 'word' | 'passage' | 'concept'; context?: string; libraryItemId?: number }) =>
     request<{ explanation: AiExplanation }>('/ai/explain', { method: 'POST', body: body(data) }),
+
+  aiRecommend: () => request<{ recommendation: AiRecommendation }>('/ai/recomendar', { method: 'POST' }),
 
   // lembretes por push (ponto de extensão — hoje responde desligado sem as chaves VAPID)
   pushChavePublica: () => request<PushChavePublica>('/push/chave-publica'),

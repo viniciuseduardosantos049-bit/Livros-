@@ -1,5 +1,5 @@
 import { HttpError } from '../../lib/http.js';
-import type { AiProvider, ExplainInput, Explanation } from './ai.provider.js';
+import type { AiProvider, ExplainInput, Explanation, Recommendation, RecommendInput } from './ai.provider.js';
 
 const SYSTEM_INSTRUCTION = [
   'Você ajuda um leitor a entender o que ele está lendo.',
@@ -27,6 +27,50 @@ export function buildPrompt(input: ExplainInput): string {
     );
   }
   return parts.join('\n\n');
+}
+
+const RECOMMEND_SYSTEM_INSTRUCTION = [
+  'Você recomenda o próximo livro para um leitor, a partir do histórico de leitura dele.',
+  'Responda sempre em português do Brasil.',
+  'Escolha UM livro real, que não esteja nas listas que o leitor já informou.',
+  'Responda em exatamente três linhas, neste formato exato, sem nada antes ou depois:',
+  'TÍTULO: <título do livro>',
+  'AUTOR: <nome do autor>',
+  'MOTIVO: <uma frase curta ligando a sugestão ao que o leitor já leu>',
+].join(' ');
+
+function formatarLivro(livro: { title: string; authors: string[]; rating?: number | null }): string {
+  const autor = livro.authors.join(', ') || 'autor desconhecido';
+  const nota = livro.rating ? `, nota ${livro.rating}/5` : '';
+  return `- ${livro.title} (${autor}${nota})`;
+}
+
+/** Monta o prompt de recomendação. Puro, para ser testável sem rede. */
+export function buildRecommendPrompt(input: RecommendInput): string {
+  const partes = ['Livros que o leitor já concluiu, do mais recente pro mais antigo:', ...input.lidos.map(formatarLivro)];
+
+  if (input.querLer.length > 0) {
+    partes.push('Já na fila dele — não sugira nenhum destes:', ...input.querLer.map(formatarLivro));
+  }
+
+  return partes.join('\n');
+}
+
+/**
+ * O formato de três linhas (TÍTULO/AUTOR/MOTIVO) existe porque o Gemini não
+ * tem um modo JSON estrito nesta chamada — pedir um formato fixo e fácil de
+ * reconhecer é mais robusto do que tentar fazer o modelo devolver JSON válido.
+ */
+export function parseRecommendation(texto: string): Omit<Recommendation, 'provider'> {
+  const titulo = /T[ÍI]TULO:\s*(.+)/i.exec(texto)?.[1]?.trim();
+  const autor = /AUTOR:\s*(.+)/i.exec(texto)?.[1]?.trim();
+  const motivo = /MOTIVO:\s*(.+)/i.exec(texto)?.[1]?.trim();
+
+  if (!titulo || !motivo) {
+    throw new HttpError(502, 'O Gemini não devolveu uma recomendação no formato esperado.');
+  }
+
+  return { title: titulo, authors: autor ?? '', reason: motivo };
 }
 
 interface GeminiResponse {
@@ -62,11 +106,24 @@ export class GeminiProvider implements AiProvider {
    * mantém a espera do leitor dentro de um limite razoável.
    */
   async explain(input: ExplainInput): Promise<Explanation> {
+    return this.comFallback((model) => this.request(model, input));
+  }
+
+  async recommend(input: RecommendInput): Promise<Recommendation> {
+    return this.comFallback((model) => this.requestRecommendation(model, input));
+  }
+
+  /**
+   * 503/429 e timeout do Gemini são picos de demanda momentâneos, não erro de
+   * uso: tenta o modelo alternativo antes de desistir. Uma tentativa por modelo
+   * mantém a espera do leitor dentro de um limite razoável.
+   */
+  private async comFallback<T>(chamar: (model: string) => Promise<T>): Promise<T> {
     let lastError: unknown;
 
     for (const [index, model] of this.models.entries()) {
       try {
-        return await this.request(model, input);
+        return await chamar(model);
       } catch (error) {
         const transient =
           error instanceof HttpError && [429, 503, 504].includes(error.status);
@@ -84,6 +141,17 @@ export class GeminiProvider implements AiProvider {
   }
 
   private async request(model: string, input: ExplainInput): Promise<Explanation> {
+    const text = await this.gerarTexto(model, SYSTEM_INSTRUCTION, buildPrompt(input));
+    return { text, mode: input.mode, provider: `${this.name}/${model}`, sources: [] };
+  }
+
+  private async requestRecommendation(model: string, input: RecommendInput): Promise<Recommendation> {
+    const texto = await this.gerarTexto(model, RECOMMEND_SYSTEM_INSTRUCTION, buildRecommendPrompt(input));
+    return { ...parseRecommendation(texto), provider: `${this.name}/${model}` };
+  }
+
+  /** Chamada crua ao Gemini: manda o par instrução/prompt, devolve o texto gerado. */
+  private async gerarTexto(model: string, systemInstruction: string, prompt: string): Promise<string> {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
@@ -94,8 +162,8 @@ export class GeminiProvider implements AiProvider {
         signal: controller.signal,
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': this.apiKey },
         body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-          contents: [{ role: 'user', parts: [{ text: buildPrompt(input) }] }],
+          systemInstruction: { parts: [{ text: systemInstruction }] },
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
           // Sem thinkingConfig de propósito: nem todo modelo da família aceita o
           // campo (o flash-lite rejeita com 400), e a robustez do fallback vale
           // mais que o ganho de latência.
@@ -133,7 +201,7 @@ export class GeminiProvider implements AiProvider {
 
       if (!text) throw new HttpError(502, 'O Gemini não devolveu uma resposta utilizável.');
 
-      return { text, mode: input.mode, provider: `${this.name}/${model}`, sources: [] };
+      return text;
     } catch (error) {
       if (error instanceof HttpError) throw error;
       if (error instanceof Error && error.name === 'AbortError') {

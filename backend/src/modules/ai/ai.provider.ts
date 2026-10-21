@@ -19,10 +19,31 @@ export interface Explanation {
   sources: string[];
 }
 
+export interface LivroLido {
+  title: string;
+  authors: string[];
+  rating?: number | null;
+}
+
+export interface RecommendInput {
+  /** Livros concluídos, do mais recente pro mais antigo — é a base da sugestão. */
+  lidos: LivroLido[];
+  /** Já na fila de leitura: entra só para o modelo não sugerir de novo. */
+  querLer: LivroLido[];
+}
+
+export interface Recommendation {
+  title: string;
+  authors: string;
+  reason: string;
+  provider: string;
+}
+
 export interface AiProvider {
   readonly name: string;
   readonly enabled: boolean;
   explain(input: ExplainInput): Promise<Explanation>;
+  recommend(input: RecommendInput): Promise<Recommendation>;
 }
 
 /**
@@ -35,6 +56,14 @@ export class DisabledAiProvider implements AiProvider {
   readonly enabled = false;
 
   async explain(): Promise<Explanation> {
+    throw new HttpError(
+      503,
+      'A assistência por IA ainda não está configurada nesta instalação.',
+      { hint: 'Defina AI_PROVIDER e a chave correspondente no .env do backend.' },
+    );
+  }
+
+  async recommend(): Promise<Recommendation> {
     throw new HttpError(
       503,
       'A assistência por IA ainda não está configurada nesta instalação.',

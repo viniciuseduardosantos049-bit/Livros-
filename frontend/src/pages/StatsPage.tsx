@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
-import { STATUS_LABELS, STATUS_ORDER, type ReadingNow, type Stats } from '../api/types';
+import { STATUS_LABELS, STATUS_ORDER, type AiRecommendation, type AiStatus, type ReadingGoal, type ReadingNow, type Stats } from '../api/types';
 import { ConviteInstalar, LembretesPush } from '../components/PwaBanners';
 import { useAuth } from '../context/AuthContext';
-import { Cover, EmptyState, ErrorBox, Spinner, formatDate } from '../components/ui';
+import { Cover, EmptyState, ErrorBox, ProgressBar, Spinner, formatDate } from '../components/ui';
 
 /**
  * Identidade e saída da conta.
@@ -46,6 +46,136 @@ function Conta() {
   );
 }
 
+/**
+ * Meta de livros do ano. Sem meta definida, o card convida a criar uma; com
+ * meta, mostra o progresso — a mesma barra usada no progresso de cada livro.
+ */
+function MetaDeLeitura({ goal, onChanged }: { goal: ReadingGoal | null; onChanged: () => void }) {
+  const anoAtual = new Date().getFullYear();
+  const [editando, setEditando] = useState(false);
+  const [valor, setValor] = useState(String(goal?.target ?? 12));
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function salvar() {
+    const target = Number(valor);
+    if (!Number.isInteger(target) || target < 1) {
+      setErro('Informe um número de livros maior que zero.');
+      return;
+    }
+    setSalvando(true);
+    setErro(null);
+    try {
+      await api.setGoal(target);
+      setEditando(false);
+      onChanged();
+    } catch {
+      setErro('Não foi possível salvar a meta agora.');
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  if (editando || !goal) {
+    return (
+      <div className="card" style={{ marginBottom: '1.5rem' }}>
+        <h2>Meta de {anoAtual}</h2>
+        <p className="small muted" style={{ margin: '.2rem 0 .8rem' }}>Quantos livros você quer concluir este ano?</p>
+        <div className="inline" style={{ gap: '.5rem' }}>
+          <input
+            type="number"
+            min={1}
+            max={999}
+            value={valor}
+            onChange={(e) => setValor(e.target.value)}
+            style={{ width: '5rem' }}
+            aria-label="Meta de livros no ano"
+          />
+          <button type="button" className="btn-primary btn-sm" onClick={() => void salvar()} disabled={salvando}>
+            {salvando ? 'Salvando…' : 'Salvar'}
+          </button>
+          {goal && (
+            <button type="button" className="btn-ghost btn-sm" onClick={() => setEditando(false)} disabled={salvando}>
+              Cancelar
+            </button>
+          )}
+        </div>
+        {erro && <p className="small" style={{ color: 'var(--danger, #b3261e)', margin: '.5rem 0 0' }}>{erro}</p>}
+      </div>
+    );
+  }
+
+  const percent = Math.min(100, Math.round((goal.completed / goal.target) * 100));
+  return (
+    <div className="card" style={{ marginBottom: '1.5rem' }}>
+      <div className="inline" style={{ justifyContent: 'space-between' }}>
+        <h2>Meta de {goal.year}</h2>
+        <button type="button" className="btn-ghost btn-sm" onClick={() => { setValor(String(goal.target)); setEditando(true); }}>
+          Editar
+        </button>
+      </div>
+      <p style={{ margin: '.2rem 0 .6rem' }}>
+        <strong>{goal.completed}</strong> de {goal.target} {goal.target === 1 ? 'livro' : 'livros'}
+        {goal.completed >= goal.target ? ' — meta batida! 🎉' : ''}
+      </p>
+      <ProgressBar percent={percent} />
+    </div>
+  );
+}
+
+/**
+ * Sugestão de próximo livro pela IA, a partir do que a pessoa já concluiu.
+ * Mesma lógica de "esconder se a IA está desligada" do LembretesPush — aqui
+ * não precisa de motivo detalhado porque não há nada pra configurar na tela.
+ */
+function RecomendacaoLeitura() {
+  const [status, setStatus] = useState<AiStatus | null>(null);
+  const [sugestao, setSugestao] = useState<AiRecommendation | null>(null);
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.aiStatus().then(setStatus).catch(() => setStatus(null));
+  }, []);
+
+  async function sugerir() {
+    setCarregando(true);
+    setErro(null);
+    try {
+      const { recommendation } = await api.aiRecommend();
+      setSugestao(recommendation);
+    } catch (err) {
+      setErro(err instanceof ApiError ? err.message : 'Não foi possível buscar uma sugestão agora.');
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  if (!status?.enabled) return null;
+
+  return (
+    <div className="card" style={{ marginBottom: '1.5rem' }}>
+      <h2>Próxima leitura</h2>
+      {sugestao ? (
+        <>
+          <p style={{ margin: '.4rem 0 0' }}>
+            <strong>{sugestao.title}</strong>{sugestao.authors ? ` — ${sugestao.authors}` : ''}
+          </p>
+          <p className="small muted" style={{ margin: '.3rem 0 .8rem' }}>{sugestao.reason}</p>
+        </>
+      ) : (
+        <p className="small muted" style={{ margin: '.2rem 0 .8rem' }}>
+          Peça uma sugestão de livro baseada no que você já leu.
+        </p>
+      )}
+      {erro && <ErrorBox message={erro} />}
+      <button type="button" className="btn-primary btn-sm" onClick={() => void sugerir()} disabled={carregando}>
+        {carregando ? 'Pensando…' : sugestao ? 'Sugerir outro' : 'Sugerir um livro'}
+      </button>
+    </div>
+  );
+}
+
 export default function StatsPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,6 +200,7 @@ export default function StatsPage() {
       <>
         <Conta />
         <LembretesPush />
+        <MetaDeLeitura goal={stats.goal} onChanged={() => setReload((n) => n + 1)} />
         <EmptyState
           title="Ainda não há o que medir"
           description="Adicione livros à sua biblioteca e registre seu progresso para ver as estatísticas."
@@ -99,6 +230,8 @@ export default function StatsPage() {
           app já está instalado ou quando o navegador não suporta. */}
       <ConviteInstalar />
       <LembretesPush />
+      <MetaDeLeitura goal={stats.goal} onChanged={() => setReload((n) => n + 1)} />
+      <RecomendacaoLeitura />
 
       {foco ? <LivroEmFoco livro={foco} /> : <NadaEmLeitura />}
 

@@ -1,7 +1,17 @@
 import { db } from '../../db/index.js';
 import { HttpError } from '../../lib/http.js';
-import type { AiProvider, ExplainInput, Explanation } from './ai.provider.js';
+import type { AiProvider, ExplainInput, Explanation, LivroLido, Recommendation } from './ai.provider.js';
 import { createAiProvider } from './provider.factory.js';
+
+interface LivroRow {
+  title: string;
+  authors: string;
+  rating: number | null;
+}
+
+function paraLivroLido(row: LivroRow): LivroLido {
+  return { title: row.title, authors: JSON.parse(row.authors) as string[], rating: row.rating };
+}
 
 /**
  * Orquestra a explicação: monta o contexto a partir do que o usuário já
@@ -58,6 +68,40 @@ export class AiService {
 
     // O provider não sabe de onde veio o contexto; quem montou foi este serviço.
     return { ...explanation, sources: [...sources, ...explanation.sources] };
+  }
+
+  /** Sugere o próximo livro a partir do que o usuário já concluiu. */
+  async recommend(userId: number): Promise<Recommendation> {
+    const lidosRows = (await db
+      .prepare(
+        `SELECT w.title, w.authors, ul.rating
+           FROM user_library ul
+           JOIN book_editions e ON e.id = ul.edition_id
+           JOIN book_works    w ON w.id = e.work_id
+          WHERE ul.user_id = ? AND ul.status = 'FINISHED'
+          ORDER BY ul.finished_at DESC LIMIT 30`,
+      )
+      .all(userId)) as LivroRow[];
+
+    if (lidosRows.length === 0) {
+      throw HttpError.badRequest('Conclua ao menos um livro para receber recomendações.');
+    }
+
+    const querLerRows = (await db
+      .prepare(
+        `SELECT w.title, w.authors, ul.rating
+           FROM user_library ul
+           JOIN book_editions e ON e.id = ul.edition_id
+           JOIN book_works    w ON w.id = e.work_id
+          WHERE ul.user_id = ? AND ul.status IN ('WANT_TO_READ', 'READING')
+          ORDER BY ul.added_at DESC LIMIT 20`,
+      )
+      .all(userId)) as LivroRow[];
+
+    return this.provider.recommend({
+      lidos: lidosRows.map(paraLivroLido),
+      querLer: querLerRows.map(paraLivroLido),
+    });
   }
 }
 
