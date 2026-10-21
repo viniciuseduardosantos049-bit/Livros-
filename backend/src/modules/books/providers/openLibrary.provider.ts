@@ -140,7 +140,7 @@ export class OpenLibraryProvider {
       fonte: 'openlibrary',
       isbns: doc?.isbn ?? [],
       coverEditionKey: doc?.cover_edition_key ?? null,
-      publisher: doc?.publisher?.[0] ?? null,
+      publishers: doc?.publisher ?? [],
       description: readDescription(work.description),
       subjects: (work.subjects ?? []).slice(0, 12),
     };
@@ -202,9 +202,9 @@ export class OpenLibraryProvider {
       fonte: 'openlibrary',
       isbns: doc.isbn ?? [],
       coverEditionKey: doc.cover_edition_key ?? null,
-      // Primeira do array: a obra pode ter centenas de edições/editoras, e o
-      // array inteiro vira ruído demais para um filtro. Ver comentário em SEARCH_FIELDS.
-      publisher: doc.publisher?.[0] ?? null,
+      // Array inteiro, não só a primeira: cortar escondia editoras reais do
+      // filtro sempre que elas não vinham em primeiro na ordem da Open Library.
+      publishers: doc.publisher ?? [],
     };
   }
 

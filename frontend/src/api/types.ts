@@ -27,8 +27,8 @@ export interface WorkSummary {
   fonte: 'openlibrary' | 'google';
   /** Título catalogado, quando foi substituído pelo da edição na língua da busca. */
   tituloOriginal?: string;
-  /** Editora representativa do resultado, usada no filtro da busca. */
-  publisher: string | null;
+  /** Todas as editoras conhecidas da obra (Open Library) ou só a do volume (Google). Usado no filtro da busca. */
+  publishers: string[];
   /** Só em resultados do Google: dados prontos para identificar a edição. */
   volume?: {
     googleId: string;

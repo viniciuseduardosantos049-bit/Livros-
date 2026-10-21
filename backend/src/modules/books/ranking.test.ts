@@ -18,7 +18,7 @@ function obra(p: Partial<WorkSummary> & { title: string }): WorkSummary {
     ratingsCount: 0,
     ratingsAverage: null,
     fonte: 'openlibrary',
-    publisher: p.publisher ?? null,
+    publishers: p.publishers ?? [],
   };
 }
 

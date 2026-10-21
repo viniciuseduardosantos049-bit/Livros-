@@ -64,14 +64,12 @@ export default function SearchPage() {
 
   const showEmpty = !loading && !error && data && data.items.length === 0;
 
-  // Editora representativa de cada resultado (ver backend/book.types.ts) — não é
-  // o catálogo completo de edições, só o suficiente para filtrar esta página.
+  // Todas as editoras de todos os resultados desta página — a Open Library já
+  // devolve a lista inteira de editoras de cada obra, sem chamada extra.
   const editoras = data
-    ? [...new Set(data.items.map((w) => w.publisher).filter((p): p is string => Boolean(p)))].sort((a, b) =>
-        a.localeCompare(b, 'pt-BR'),
-      )
+    ? [...new Set(data.items.flatMap((w) => w.publishers))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
     : [];
-  const itensFiltrados = data ? (editora ? data.items.filter((w) => w.publisher === editora) : data.items) : [];
+  const itensFiltrados = data ? (editora ? data.items.filter((w) => w.publishers.includes(editora)) : data.items) : [];
 
   return (
     <>
@@ -122,26 +120,14 @@ export default function SearchPage() {
           <p className="small muted">{data.total.toLocaleString('pt-BR')} obras encontradas</p>
 
           {editoras.length > 1 && (
-            <div className="ask-modes" style={{ margin: '0 0 1rem' }}>
-              <button
-                type="button"
-                className={`chip ${editora === null ? 'active' : ''}`}
-                onClick={() => setEditora(null)}
-                aria-pressed={editora === null}
-              >
-                Todas as editoras
-              </button>
-              {editoras.map((nome) => (
-                <button
-                  key={nome}
-                  type="button"
-                  className={`chip ${editora === nome ? 'active' : ''}`}
-                  onClick={() => setEditora(nome)}
-                  aria-pressed={editora === nome}
-                >
-                  {nome}
-                </button>
-              ))}
+            <div className="field" style={{ maxWidth: '22rem', margin: '0 0 1.2rem' }}>
+              <label htmlFor="filtro-editora">Editora</label>
+              <select id="filtro-editora" value={editora ?? ''} onChange={(e) => setEditora(e.target.value || null)}>
+                <option value="">Todas as editoras ({editoras.length})</option>
+                {editoras.map((nome) => (
+                  <option key={nome} value={nome}>{nome}</option>
+                ))}
+              </select>
             </div>
           )}
 
