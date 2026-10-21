@@ -31,7 +31,7 @@ export default function LibraryPage() {
           <h1>Minha biblioteca</h1>
           <p>Os livros que você possui, com o progresso de leitura de cada exemplar.</p>
         </div>
-        <Link className="btn-primary" to="/pesquisar" style={{ padding: '.6rem 1rem' }}>
+        <Link className="btn-primary" to="/pesquisar">
           + Adicionar livro
         </Link>
       </div>

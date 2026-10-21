@@ -76,7 +76,7 @@ export default function BookDetailPage() {
             </div>
             <div className="book-head-progress">
               <ProgressBar percent={item.percent} />
-              <p className="small muted" style={{ margin: '.35rem 0 0' }}>
+              <p className="small muted" style={{ margin: 0 }}>
                 {item.totalPages
                   ? `pág. ${item.currentPage} de ${item.totalPages} · ${item.percent}%`
                   : `pág. ${item.currentPage}`}
