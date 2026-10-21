@@ -655,3 +655,105 @@ input::placeholder { color: #a79a9d; }
   .passo-texto { text-align: left; }
   .passo-seta { display: none; }
 }
+
+/* Rótulo da ação, só na barra lateral: no celular a aba é um círculo de ícone.
+   Precisa vir antes da media query — mesma especificidade, quem vem depois ganha. */
+.aba-acao-texto { display: none; }
+
+/* ==========================================================================
+   Telas largas: a mesma casca vira app de duas colunas
+   --------------------------------------------------------------------------
+   Até aqui o app é uma faixa de 460px em qualquer monitor. Num laptop isso
+   deixa a maior parte da tela vazia e faz o produto parecer um protótipo de
+   celular aberto no lugar errado.
+
+   A mudança é estrutural, não tipográfica: as abas de polegar viram navegação
+   lateral permanente, e o conteúdo recebe a largura que sobra. Nada na
+   marcação muda — quem reposiciona é o grid, por áreas nomeadas, então a
+   ordem do DOM continua conteúdo-depois-navegação.
+
+   900px é onde uma lateral de 232px mais uma coluna de leitura confortável
+   passam a caber sem apertar nenhuma das duas.
+   ========================================================================== */
+@media (min-width: 900px) {
+  .app {
+    max-width: 1180px;
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    /* A faixa de aviso do PWA atravessa as duas colunas; sem ela a linha
+       colapsa sozinha, porque a altura é `auto`. */
+    grid-template-areas:
+      "aviso aviso"
+      "nav   tela";
+  }
+
+  .pwa-bar { grid-area: aviso; }
+  .abas    { grid-area: nav; }
+  .tela    { grid-area: tela; }
+
+  /* ---- navegação lateral ---- */
+  .abas {
+    display: flex; flex-direction: column; align-items: stretch;
+    gap: calc(var(--u) * .25);
+    border-top: none;
+    border-right: 1px solid var(--border);
+    padding: calc(var(--u) * 2) calc(var(--u) * 1.5);
+    /* O blur existia para o conteúdo passar por baixo da barra inferior.
+       Numa coluna fixa não há nada passando por baixo. */
+    backdrop-filter: none;
+    background: var(--bg-soft);
+    overflow-y: auto;
+  }
+
+  /* Mesma altura para a ação e para as abas: a primária nunca pode ficar
+     menor que a navegação, e 44px ainda serve ao toque num laptop com tela
+     sensível. */
+  .aba, .aba-acao { min-height: calc(var(--u) * 5.5); }
+
+  .aba {
+    flex-direction: row; justify-content: flex-start;
+    gap: calc(var(--u) * 1.25);
+    padding: calc(var(--u) * 1.25) calc(var(--u) * 1.5);
+    border-radius: var(--radius);
+    /* Sem o salto de peso, trocar de aba empurrava os itens de baixo. */
+    font-size: .9rem;
+  }
+  .aba:hover { background: var(--surface-hover); }
+  .aba.ativa { background: var(--accent-soft); }
+  .aba-icone { font-size: 1rem; width: 1.1em; text-align: center; }
+  .aba-texto { font-size: inherit; letter-spacing: 0; }
+
+  /* A ação primária deixa de ser um círculo no meio das abas e passa a ser o
+     primeiro item da lateral: é o que mais se repete no uso diário. */
+  .aba-acao {
+    order: -1;
+    width: 100%; height: auto; border-radius: var(--radius);
+    gap: calc(var(--u) * 1.25);
+    padding: calc(var(--u) * 1.25) calc(var(--u) * 1.5);
+    margin-bottom: calc(var(--u) * 1.5);
+    font-size: .9rem; font-weight: 500;
+    /* Desfaz o que fazia dele um círculo flutuante sobre a barra inferior:
+       sem isso a margem negativa cola o botão no topo da lateral, e a sombra
+       de botão suspenso não faz sentido num item de lista. */
+    margin-top: 0; justify-self: stretch; box-shadow: none;
+    justify-content: flex-start;
+  }
+  .aba-acao-texto { display: inline; }
+
+  /* ---- conteúdo ---- */
+  .tela { padding: calc(var(--u) * 4) calc(var(--u) * 4) calc(var(--u) * 5); }
+  /* Prosa não deve atravessar a coluna inteira; dados e grades podem. */
+  .page-head, .auth-card { max-width: 72ch; }
+
+  /* Duas colunas de livros: o cartão já é capa + texto lado a lado, então
+     dobrar a coluna mostra o dobro da estante sem encolher o título. */
+  .book-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    column-gap: calc(var(--u) * 3);
+  }
+  /* Com duas colunas, a divisória de baixo vira uma linha solta no fim de cada
+     coluna. A borda some e o espaçamento passa a separar. */
+  .book-card { border-bottom: none; padding: calc(var(--u) * 1.5) 0; }
+}

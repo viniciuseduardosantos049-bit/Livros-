@@ -14,6 +14,10 @@ import { OfflineBar, UpdateBar } from './PwaBanners';
  * O botão central não é uma aba: registrar progresso é a ação que se repete toda
  * vez que alguém fecha o livro, então ela fica no lugar mais acessível da tela
  * em vez de ficar escondida dentro do detalhe de cada livro.
+ *
+ * A partir de 900px a mesma marcação vira outra coisa, só por CSS: as abas
+ * sobem para uma barra lateral e o conteúdo ocupa a largura que sobra. A
+ * ordem no DOM não muda — quem coloca a navegação à esquerda é o grid.
  */
 const abas = [
   { to: '/biblioteca', curto: 'Estante', icone: '▤' },
@@ -49,6 +53,10 @@ export default function Layout() {
           aria-label="Registrar leitura"
         >
           <span aria-hidden>+</span>
+          {/* Só aparece na barra lateral do desktop: ali o botão tem largura
+              para um rótulo, e um "+" solto numa lista de itens nomeados não
+              diria o que faz. No celular continua sendo só o ícone. */}
+          <span className="aba-acao-texto">Registrar leitura</span>
         </button>
 
         {abas.slice(2).map((aba) => (
