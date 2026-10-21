@@ -15,6 +15,12 @@ export default function LoginPage() {
 
   if (user) return <Navigate to={location.state?.from ?? '/biblioteca'} replace />;
 
+  function preencherContaDeTeste() {
+    setEmail('contademo@gmail.com');
+    setPassword('Demo1234');
+    setError(null);
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
@@ -46,9 +52,17 @@ export default function LoginPage() {
         <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={submitting}>
           {submitting ? 'Entrando...' : 'Entrar'}
         </button>
-        <p className="small muted" style={{ textAlign: 'center', marginTop: '1rem', marginBottom: 0 }}>
-          O acesso é por convite: peça uma conta a quem administra a biblioteca.
-        </p>
+        <div className="conta-teste" role="note">
+          <p className="small muted" style={{ margin: 0 }}>
+            Só quer dar uma olhada? Use a conta de demonstração:
+          </p>
+          <p className="small" style={{ margin: '.3rem 0 0', fontFamily: 'monospace' }}>
+            contademo@gmail.com · Demo1234
+          </p>
+          <button type="button" className="btn-ghost btn-sm" style={{ marginTop: '.6rem' }} onClick={preencherContaDeTeste}>
+            Preencher automaticamente
+          </button>
+        </div>
       </form>
     </div>
   );

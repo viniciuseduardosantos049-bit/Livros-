@@ -448,6 +448,7 @@ input::placeholder { color: #a79a9d; }
 .auth-card { width: 100%; max-width: 380px; background: transparent; border: none; padding: 0; }
 .auth-card h1 { font-size: 1.3rem; text-align: center; }
 .auth-card > p { text-align: center; color: var(--text-muted); font-size: .875rem; margin-bottom: 1.5rem; }
+.conta-teste { margin-top: 1.2rem; padding: .8rem .9rem; border: 1px dashed var(--border); border-radius: var(--radius); text-align: center; background: var(--surface); }
 
 /* ---------- modal ---------- */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(26, 22, 23, .42); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: var(--z-modal); }
