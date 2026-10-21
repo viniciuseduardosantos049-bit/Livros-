@@ -83,6 +83,7 @@ function volumeParaWork(v: VolumeGoogle): WorkSummary {
     ratingsCount: 0,
     ratingsAverage: null,
     fonte: 'google',
+    publisher: info.publisher ?? null,
     volume: {
       googleId: v.id,
       publisher: info.publisher ?? null,

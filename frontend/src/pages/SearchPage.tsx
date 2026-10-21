@@ -16,6 +16,7 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
+  const [editora, setEditora] = useState<string | null>(null);
   const lastTerm = useRef(debouncedTerm);
 
   // Digitar uma nova busca sempre reinicia a paginação.
@@ -44,7 +45,10 @@ export default function SearchPage() {
     api
       .searchBooks(query, page)
       .then((result) => {
-        if (!controller.signal.aborted) setData(result);
+        if (!controller.signal.aborted) {
+          setData(result);
+          setEditora(null); // nova página de resultados: o filtro anterior pode não existir mais aqui
+        }
       })
       .catch((err) => {
         if (controller.signal.aborted) return;
@@ -59,6 +63,15 @@ export default function SearchPage() {
   }, [debouncedTerm, page, retryToken, setParams]);
 
   const showEmpty = !loading && !error && data && data.items.length === 0;
+
+  // Editora representativa de cada resultado (ver backend/book.types.ts) — não é
+  // o catálogo completo de edições, só o suficiente para filtrar esta página.
+  const editoras = data
+    ? [...new Set(data.items.map((w) => w.publisher).filter((p): p is string => Boolean(p)))].sort((a, b) =>
+        a.localeCompare(b, 'pt-BR'),
+      )
+    : [];
+  const itensFiltrados = data ? (editora ? data.items.filter((w) => w.publisher === editora) : data.items) : [];
 
   return (
     <>
@@ -107,8 +120,36 @@ export default function SearchPage() {
       {!loading && data && data.items.length > 0 && (
         <>
           <p className="small muted">{data.total.toLocaleString('pt-BR')} obras encontradas</p>
+
+          {editoras.length > 1 && (
+            <div className="ask-modes" style={{ margin: '0 0 1rem' }}>
+              <button
+                type="button"
+                className={`chip ${editora === null ? 'active' : ''}`}
+                onClick={() => setEditora(null)}
+                aria-pressed={editora === null}
+              >
+                Todas as editoras
+              </button>
+              {editoras.map((nome) => (
+                <button
+                  key={nome}
+                  type="button"
+                  className={`chip ${editora === nome ? 'active' : ''}`}
+                  onClick={() => setEditora(nome)}
+                  aria-pressed={editora === nome}
+                >
+                  {nome}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {itensFiltrados.length === 0 ? (
+            <EmptyState title="Nenhum resultado para essa editora" description="Tente outra editora ou limpe o filtro acima." />
+          ) : (
           <div className="book-grid">
-            {data.items.map((work) => (
+            {itensFiltrados.map((work) => (
               <article key={work.workKey} className="book-card">
                 <Cover url={work.coverUrl} title={work.title} authors={work.authors} seedKey={work.workKey} />
                 <div className="book-info">
@@ -145,6 +186,7 @@ export default function SearchPage() {
               </article>
             ))}
           </div>
+          )}
           <Pagination page={data.page} totalPages={Math.min(data.totalPages, 100)} onChange={setPage} disabled={loading} />
         </>
       )}

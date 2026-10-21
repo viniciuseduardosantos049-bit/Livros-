@@ -22,6 +22,8 @@ export interface WorkSummary {
   coverEditionKey?: string | null;
   /** Título catalogado, quando foi substituído pelo da edição na língua da busca. */
   tituloOriginal?: string;
+  /** Editora representativa do resultado, usada no filtro da busca. */
+  publisher: string | null;
   /** Só em resultados do Google: dados já prontos para o cadastro direto. */
   volume?: {
     googleId: string;
